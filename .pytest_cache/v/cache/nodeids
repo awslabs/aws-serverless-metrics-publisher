@@ -1,0 +1,15 @@
+[
+  "test/unit/test_handler.py::test_standard_valid_input", 
+  "test/unit/test_handler.py::test_basic_valid_input", 
+  "test/unit/test_handler.py::test_multiple_metrics_input", 
+  "test/unit/test_handler.py::test_value_and_statistic_values_both_included", 
+  "test/unit/test_handler.py::test_missing_value_and_statistic_values", 
+  "test/unit/test_handler.py::test_missing_request_id", 
+  "test/unit/test_handler.py::test_missing_metric_name", 
+  "test/unit/test_handler.py::test_statistic_values_missing_sum", 
+  "test/unit/test_handler.py::test_unit_type_not_available", 
+  "test/unit/test_handler.py::test_storage_resolution_type_invalid", 
+  "test/unit/test_handler.py::test_dimension_type_invalid", 
+  "test/unit/test_handler.py::test_dimension_item_type_invalid", 
+  "test/unit/test_handler.py::test_dimension_item_wrong_property"
+]

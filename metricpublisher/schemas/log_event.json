@@ -1,0 +1,149 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Schema for the log_event lambda request object",
+    "type": "object",
+    "definitions": {
+        "dimension_item": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name",
+                "value"
+            ]
+        },
+        "dimensions": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/dimension_item"
+            }
+        },
+        "statistic_values": {
+            "type": "object",
+            "properties": {
+                "sample_count": {
+                    "type": "number"
+                },
+                "sum": {
+                    "type": "number"
+                },
+                "minimum": {
+                    "type": "number"
+                },
+                "maximum": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "sample_count",
+                "sum",
+                "minimum",
+                "maximum"
+            ]
+        },
+        "metric_datum": {
+            "type": "object",
+            "properties": {
+                "metric_name": {
+                    "type": "string"
+                },
+                "dimensions": {
+                    "$ref": "#/definitions/dimensions"
+                },
+                "timestamp": {
+                    "type": "number"
+                },
+                "value": {
+                    "type": "number"
+                },
+                "statistic_values": {
+                    "$ref": "#/definitions/statistic_values"
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": [
+                        "Seconds",
+                        "Microseconds",
+                        "Milliseconds",
+                        "Bytes",
+                        "Kilobytes",
+                        "Megabytes",
+                        "Gigabytes",
+                        "Terabytes",
+                        "Bits",
+                        "Kilobits",
+                        "Megabits",
+                        "Gigabits",
+                        "Terabits",
+                        "Percent",
+                        "Count",
+                        "Bytes/Second",
+                        "Kilobytes/Second",
+                        "Megabytes/Second",
+                        "Gigabytes/Second",
+                        "Terabytes/Second",
+                        "Bits/Second",
+                        "Kilobits/Second",
+                        "Megabits/Second",
+                        "Gigabits/Second",
+                        "Terabits/Second",
+                        "Count/Second",
+                        "None"
+                    ]
+                },
+                "storage_resolution": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "metric_name"
+            ],
+            "oneOf": [
+                {
+                    "required": [
+                        "value"
+                    ],
+                    "not": {
+                        "required": [
+                            "statistic_values"
+                        ]
+                    }
+                },
+                {
+                    "required": [
+                        "statistic_values"
+                    ],
+                    "not": {
+                        "required": [
+                            "value"
+                        ]
+                    }
+                }
+            ]
+        },
+        "metric_data": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/metric_datum"
+            }
+        }
+    },
+    "properties": {
+        "request_id": {
+            "type": "string"
+        },
+        "metric_data": {
+            "$ref": "#/definitions/metric_data"
+        }
+    },
+    "required": [
+        "request_id",
+        "metric_data"
+    ]
+}
