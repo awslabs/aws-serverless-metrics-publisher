@@ -8,7 +8,8 @@ def log_event(event, context):
     """Log event.
 
     Parameters:
-        event (dict): the user input
+        event (dict): The metric data that
+        the user would like to put to cloudwatch.
 
     Returns:
         (str) message upon successful execution
