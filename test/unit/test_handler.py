@@ -2,23 +2,24 @@ import json
 import pytest
 import events
 from jsonschema import ValidationError
-import metricpublisher.schema
+import mock
+from pytest_mock import mocker
 import metricpublisher.lambda_handler
 
 def test_standard_valid_input():
     """Test to make sure a standard valid input passes the JSON schema"""
     data = events.standard_valid_input()
-    assert metricpublisher.schema._validate(data,"log_event.json") == None
+    assert metricpublisher.lambda_handler.log_event(data,None) == None
 
 def test_basic_valid_input():
     """Test to make sure a minimalistic input passes the JSON schema"""
     data = events.basic_valid_input()
-    assert metricpublisher.schema._validate(data,"log_event.json") == None
+    assert metricpublisher.lambda_handler.log_event(data,None) == None
 
 def test_multiple_metrics_input():
     """Test to validate that the option to input multiple metrics simultaneously is available."""
     data = events.multiple_metrics_input()
-    assert metricpublisher.schema._validate(data,"log_event.json") == None
+    assert metricpublisher.lambda_handler.log_event(data,None) == None
 
 def test_value_and_statistic_values_both_included():
     """Test to assert that customer cannot pass in both 'value' and
