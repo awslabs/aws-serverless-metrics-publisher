@@ -2,6 +2,13 @@
 
 from jsonschema import ValidationError
 import schema
+import boto3
+import config
+
+LOG_GROUP_NAME = config.LOG_GROUP_NAME_TEMP
+CLIENT = boto3.client('logs')
+NAMESPACE = config.NAMESPACE_TEMP_PARAM
+CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
 
 
 def log_event(event, context):
