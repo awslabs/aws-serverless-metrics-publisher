@@ -5,6 +5,7 @@ from jsonschema import ValidationError
 import mock
 from pytest_mock import mocker
 import metricpublisher.lambda_handler
+import metricpublisher.config
 
 def test_standard_valid_input():
     """Test to make sure a standard valid input passes the JSON schema"""
@@ -93,6 +94,39 @@ def test_dimension_item_wrong_property():
     _assert_error_response(
         metricpublisher.lambda_handler.log_event(data,None),"ValidationError"
     )
+
+def test_log_event(mocker):
+    """Test to ensure that log_event is called with the correct parameters."""
+    mocker.patch.object(metricpublisher.lambda_handler, 'log_event')
+    metricpublisher.lambda_handler.log_event.return_value = None
+    data = events.standard_valid_input()
+    assert metricpublisher.lambda_handler.log_event(data, None) == None
+    metricpublisher.lambda_handler.log_event.assert_called_with(data, None)
+
+def test_create_log_stream(mocker):
+    """Test to ensure that create_log_stream is called with the correct parameters."""
+    data = events.standard_valid_input()
+    log_stream_name = metricpublisher.lambda_handler.NAMESPACE + '_' + data["request_id"]
+    log_group_name = metricpublisher.lambda_handler.LOG_GROUP_NAME
+    mocker.patch.object(metricpublisher.lambda_handler, 'CLIENT')
+    assert metricpublisher.lambda_handler.log_event(data, None) == None
+    metricpublisher.lambda_handler.CLIENT.create_log_stream.assert_called_with(logGroupName=log_group_name, logStreamName=log_stream_name)
+
+def test_put_log_events(mocker):
+    """Test to ensure that put_log_events is called with the correct parameters."""
+    data = events.standard_valid_input()
+    event = str(data)
+    log_events = [
+        {
+            'timestamp': metricpublisher.config.CURRENT_TIME,
+            'message': event
+        },
+    ]
+    log_stream_name = metricpublisher.lambda_handler.NAMESPACE + '_' + data["request_id"]
+    log_group_name = metricpublisher.lambda_handler.LOG_GROUP_NAME
+    mocker.patch.object(metricpublisher.lambda_handler, 'CLIENT')
+    assert metricpublisher.lambda_handler.log_event(data, None) == None
+    metricpublisher.lambda_handler.CLIENT.put_log_events.assert_called_with(logGroupName=log_group_name, logStreamName=log_stream_name,logEvents = log_events)
 
 def _assert_error_response(result, error_type):
     """Helper function to assert that the correct type of error was thrown"""
