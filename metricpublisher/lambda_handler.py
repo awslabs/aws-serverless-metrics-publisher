@@ -4,11 +4,12 @@ from jsonschema import ValidationError
 import schema
 import boto3
 import config
+import time
 
 LOG_GROUP_NAME = config.LOG_GROUP_NAME_TEMP
 CLIENT = boto3.client('logs')
 NAMESPACE = config.NAMESPACE_PARAM_TEMP
-CURRENT_TIME = config.CURRENT_TIME
+CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
 
 
 def log_event(event, context):
@@ -28,7 +29,7 @@ def log_event(event, context):
         return _error_response(err)
     request_id = event["request_id"]
     event = str(event)
-    new_log_stream_name = NAMESPACE + '_' + request_id
+    new_log_stream_name = '_'.join((NAMESPACE, request_id))
     CLIENT.create_log_stream(
         logGroupName=LOG_GROUP_NAME,
         logStreamName=new_log_stream_name
@@ -38,7 +39,7 @@ def log_event(event, context):
         logStreamName=new_log_stream_name,
         logEvents=[
             {
-                'timestamp': CURRENT_TIME,
+                'timestamp': int(time.time()*CONVERT_SECONDS_TO_MILLIS_FACTOR),
                 'message': event
             },
         ],
