@@ -4,11 +4,25 @@ from jsonschema import ValidationError
 import schema
 import boto3
 import config
+import time
 
-LOG_GROUP_NAME = config.LOG_GROUP_NAME_TEMP
 CLIENT = boto3.client('logs')
-NAMESPACE = config.NAMESPACE_TEMP_PARAM
 CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
+
+
+def get_LOG_GROUP_NAME():
+    """Get the log group name."""
+    return config.LOG_GROUP_NAME
+
+
+def get_NAMESPACE():
+    """Get the namespace."""
+    return config.NAMESPACE_PARAM
+
+
+def get_current_time():
+    """Get the current time."""
+    return int(time.time()*CONVERT_SECONDS_TO_MILLIS_FACTOR)
 
 
 def log_event(event, context):
@@ -26,6 +40,23 @@ def log_event(event, context):
         schema.validate_log_event_request(event)
     except ValidationError as err:
         return _error_response(err)
+    request_id = event["request_id"]
+    event = str(event)
+    new_log_stream_name = '_'.join((get_NAMESPACE(), request_id))
+    CLIENT.create_log_stream(
+        logGroupName=get_LOG_GROUP_NAME(),
+        logStreamName=new_log_stream_name
+    )
+    CLIENT.put_log_events(
+        logGroupName=get_LOG_GROUP_NAME(),
+        logStreamName=new_log_stream_name,
+        logEvents=[
+            {
+                'timestamp': get_current_time(),
+                'message': event
+            },
+        ],
+    )
 
 
 def _error_response(error):

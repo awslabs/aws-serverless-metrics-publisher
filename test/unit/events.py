@@ -1,10 +1,13 @@
 """Collection of events for schema validation"""
 import pytest
+import uuid
 
 @pytest.fixture()
 def standard_valid_input():
+    new_uuid = str(uuid.uuid4())
+    request_id = "request_id_" + new_uuid
     return {
-        "request_id": "an id",
+        "request_id": request_id,
         "metric_data": [
             {
                 "metric_name": "theMetricname",
@@ -33,8 +36,10 @@ def standard_valid_input():
 
 @pytest.fixture()
 def basic_valid_input():
+    new_uuid = str(uuid.uuid4())
+    request_id = "request_id_" + new_uuid
     return {
-        "request_id":"an id",
+        "request_id": request_id,
         "metric_data": [
             {
                 "metric_name": "theMetricname",
@@ -45,8 +50,10 @@ def basic_valid_input():
 
 @pytest.fixture()
 def multiple_metrics_input():
+    new_uuid = str(uuid.uuid4())
+    request_id = "request_id_" + new_uuid
     return {
-        "request_id": "an id",
+        "request_id": request_id,
         "metric_data": [
             {
                 "metric_name": "theMetricname",
