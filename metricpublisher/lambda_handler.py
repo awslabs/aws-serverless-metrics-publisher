@@ -5,6 +5,7 @@ import schema
 import boto3
 import config
 import time
+import ast
 
 CLIENT = boto3.client('logs')
 CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
@@ -33,7 +34,7 @@ def log_event(event, context):
         the user would like to put to cloudwatch.
 
     Returns:
-        (str) message upon successful execution
+        None
 
     """
     try:
@@ -57,6 +58,39 @@ def log_event(event, context):
             },
         ],
     )
+
+
+def batch_metrics(log_stream_names):
+    """Batch together metrics.
+
+    Parameters:
+        log_stream_names (list): A list of
+        log streams containing log events
+        whose 'message' field contains metrics.
+
+    Returns:
+        metrics (list): A list of metrics to
+        be put to cloudwatch.
+
+    """
+    metrics_list = []
+    if len(log_stream_names) == 0:
+        return metrics_list
+    for stream in log_stream_names:
+        log_event = CLIENT.get_log_events(
+            logGroupName=get_LOG_GROUP_NAME(),
+            logStreamName=stream
+        )
+        while len(log_event['events']) == 0:
+            time.sleep(1)  # Events will not show if put recently
+            log_event = CLIENT.get_log_events(
+                logGroupName=get_LOG_GROUP_NAME(),
+                logStreamName=stream
+            )
+        event_message = ast.literal_eval(log_event['events'][0]['message'])
+        for metric in event_message['metric_data']:
+            metrics_list.append(metric)
+    return metrics_list
 
 
 def _error_response(error):

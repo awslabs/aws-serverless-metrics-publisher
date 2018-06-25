@@ -4,6 +4,7 @@ import events
 from jsonschema import ValidationError
 from pytest_mock import mocker
 import time
+import itertools
 import metricpublisher.lambda_handler
 import metricpublisher.schema
 
@@ -98,7 +99,7 @@ def test_dimension_item_wrong_property():
         metricpublisher.lambda_handler.log_event(data,None),"ValidationError"
     )
 
-def test_client_function_calls(mocker):
+def test_log_event_client_function_calls(mocker):
     """Test to ensure that create_log_stream and put_log_events are called with the correct parameters."""
     mocker.patch.object(metricpublisher.lambda_handler, 'get_current_time')
     current_time = int(time.time()*CONVERT_SECONDS_TO_MILLIS_FACTOR)
@@ -122,6 +123,96 @@ def test_client_function_calls(mocker):
     metricpublisher.lambda_handler.CLIENT.create_log_stream.assert_called_with(logGroupName=log_group_name, logStreamName=log_stream_name)
     metricpublisher.lambda_handler.CLIENT.put_log_events.assert_called_with(logGroupName=log_group_name, logStreamName=log_stream_name,logEvents = log_events)
 
+def test_batch_metrics_client_function_call(mocker):
+    """Test to ensure that get_log_events was called with the correct input."""
+    log_group_name = 'metricPublisherAppLogGroup'
+    namespace = 'metricPublisherAppNamespace'
+    num_iters = 3
+    data = events.basic_valid_input()
+    stream_name = '_'.join((namespace, data['request_id']))
+    stream_names = list(itertools.repeat(stream_name,num_iters))
+    get_log_events_response = {
+        'events': [
+            {
+                'message': str({
+                    'metric_data': [
+                        {
+                            'metric_name': 'theMetricname',
+                            'value': 123
+                        }
+                    ],
+                    'request_id': data['request_id']
+                })
+            }
+        ],
+    }
+    single_metric = {
+        "metric_name": "theMetricname",
+        "value": 123
+    }
+    batch_metrics_expected_response = list(itertools.repeat(single_metric,num_iters))
+    mocker.patch.object(metricpublisher.lambda_handler, 'CLIENT')
+    mocker.patch.object(metricpublisher.lambda_handler, 'get_LOG_GROUP_NAME')
+    mocker.patch.object(metricpublisher.lambda_handler, 'get_NAMESPACE')
+    metricpublisher.lambda_handler.CLIENT.get_log_events.return_value = get_log_events_response
+    metricpublisher.lambda_handler.get_LOG_GROUP_NAME.return_value = log_group_name
+    metricpublisher.lambda_handler.get_NAMESPACE.return_value = namespace
+    assert metricpublisher.lambda_handler.batch_metrics(stream_names) == batch_metrics_expected_response
+    metricpublisher.lambda_handler.CLIENT.get_log_events.assert_called_with(logGroupName=log_group_name,logStreamName=stream_name)
+
+def test_batch_metrics_multiple_metrics(mocker):
+    """Test to ensure that batch_metrics works properly
+    when log events contain more then one metric."""
+    log_group_name = 'metricPublisherAppLogGroup'
+    namespace = 'metricPublisherAppNamespace'
+    num_iters = 3
+    data = events.basic_valid_input()
+    stream_name = '_'.join((namespace, data['request_id']))
+    stream_names = list(itertools.repeat(stream_name,num_iters))
+    get_log_events_response = {
+        'events': [
+            {
+                'message': str({
+                    'metric_data': [
+                        {
+                            'metric_name': 'metricName1',
+                            'value': 123
+                        },
+                        {
+                            'metric_name': 'metricName2',
+                            'value': 234
+                        },
+                        {
+                            'metric_name': 'metricName3',
+                            'value': 345
+                        }
+                  ],
+                    'request_id': data['request_id']
+                })
+            }
+        ],
+    }
+    single_metric_1 = {
+        "metric_name": "metricName1",
+        "value": 123
+    }
+    single_metric_2 = {
+        "metric_name": "metricName2",
+        "value": 234
+    }
+    single_metric_3 = {
+        "metric_name": "metricName3",
+        "value": 345
+    }
+    combined_metrics_list = [single_metric_1,single_metric_2,single_metric_3]
+    batch_metrics_expected_response = combined_metrics_list + combined_metrics_list + combined_metrics_list
+    mocker.patch.object(metricpublisher.lambda_handler, 'CLIENT')
+    mocker.patch.object(metricpublisher.lambda_handler, 'get_LOG_GROUP_NAME')
+    mocker.patch.object(metricpublisher.lambda_handler, 'get_NAMESPACE')
+    metricpublisher.lambda_handler.CLIENT.get_log_events.return_value = get_log_events_response
+    metricpublisher.lambda_handler.get_LOG_GROUP_NAME.return_value = log_group_name
+    metricpublisher.lambda_handler.get_NAMESPACE.return_value = namespace
+    assert metricpublisher.lambda_handler.batch_metrics(stream_names) == batch_metrics_expected_response
 
 def _assert_error_response(result, error_type):
     """Helper function to assert that the correct type of error was thrown"""
