@@ -11,12 +11,12 @@ CLIENT = boto3.client('logs')
 CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
 
 
-def get_LOG_GROUP_NAME():
+def get_log_group_name():
     """Get the log group name."""
-    return config.LOG_GROUP_NAME
+    return config.log_group_name
 
 
-def get_NAMESPACE():
+def get_namespace():
     """Get the namespace."""
     return config.NAMESPACE_PARAM
 
@@ -43,13 +43,13 @@ def log_event(event, context):
         return _error_response(err)
     request_id = event["request_id"]
     event = str(event)
-    new_log_stream_name = '_'.join((get_NAMESPACE(), request_id))
+    new_log_stream_name = '_'.join((get_namespace(), request_id))
     CLIENT.create_log_stream(
-        logGroupName=get_LOG_GROUP_NAME(),
+        logGroupName=get_log_group_name(),
         logStreamName=new_log_stream_name
     )
     CLIENT.put_log_events(
-        logGroupName=get_LOG_GROUP_NAME(),
+        logGroupName=get_log_group_name(),
         logStreamName=new_log_stream_name,
         logEvents=[
             {
@@ -78,15 +78,9 @@ def batch_metrics(log_stream_names):
         return metrics_list
     for stream in log_stream_names:
         log_event = CLIENT.get_log_events(
-            logGroupName=get_LOG_GROUP_NAME(),
+            logGroupName=get_log_group_name(),
             logStreamName=stream
         )
-        while len(log_event['events']) == 0:
-            time.sleep(1)  # Events will not show if put recently
-            log_event = CLIENT.get_log_events(
-                logGroupName=get_LOG_GROUP_NAME(),
-                logStreamName=stream
-            )
         event_message = ast.literal_eval(log_event['events'][0]['message'])
         for metric in event_message['metric_data']:
             metrics_list.append(metric)
