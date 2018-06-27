@@ -104,7 +104,7 @@ def test_log_event_client_function_calls(mocker):
     mocker.patch.object(metricpublisher.lambda_handler, 'get_current_time')
     current_time = int(time.time()*CONVERT_SECONDS_TO_MILLIS_FACTOR)
     metricpublisher.lambda_handler.get_current_time.return_value = current_time
-    mocker.patch.object(metricpublisher.lambda_handler,'CLIENT')
+    mocker.patch.object(metricpublisher.lambda_handler,'LOG_CLIENT')
     mocker.patch.object(metricpublisher.lambda_handler, 'get_log_group_name')
     mocker.patch.object(metricpublisher.lambda_handler, 'get_namespace')
     metricpublisher.lambda_handler.get_log_group_name.return_value = 'metricPublisherAppLogGroup'
@@ -120,8 +120,8 @@ def test_log_event_client_function_calls(mocker):
     log_stream_name = '_'.join(('metricPublisherAppNamespace', data["request_id"]))
     log_group_name = 'metricPublisherAppLogGroup'
     assert metricpublisher.lambda_handler.log_event(data, None) == None
-    metricpublisher.lambda_handler.CLIENT.create_log_stream.assert_called_with(logGroupName=log_group_name, logStreamName=log_stream_name)
-    metricpublisher.lambda_handler.CLIENT.put_log_events.assert_called_with(logGroupName=log_group_name, logStreamName=log_stream_name,logEvents = log_events)
+    metricpublisher.lambda_handler.LOG_CLIENT.create_log_stream.assert_called_with(logGroupName=log_group_name, logStreamName=log_stream_name)
+    metricpublisher.lambda_handler.LOG_CLIENT.put_log_events.assert_called_with(logGroupName=log_group_name, logStreamName=log_stream_name,logEvents = log_events)
 
 def test_batch_metrics_client_function_call(mocker):
     """Test to ensure that get_log_events was called with the correct input."""
@@ -151,14 +151,14 @@ def test_batch_metrics_client_function_call(mocker):
         "value": 123
     }
     batch_metrics_expected_response = list(itertools.repeat(single_metric,num_iters))
-    mocker.patch.object(metricpublisher.lambda_handler, 'CLIENT')
+    mocker.patch.object(metricpublisher.lambda_handler, 'LOG_CLIENT')
     mocker.patch.object(metricpublisher.lambda_handler, 'get_log_group_name')
     mocker.patch.object(metricpublisher.lambda_handler, 'get_namespace')
-    metricpublisher.lambda_handler.CLIENT.get_log_events.return_value = get_log_events_response
+    metricpublisher.lambda_handler.LOG_CLIENT.get_log_events.return_value = get_log_events_response
     metricpublisher.lambda_handler.get_log_group_name.return_value = log_group_name
     metricpublisher.lambda_handler.get_namespace.return_value = namespace
     assert metricpublisher.lambda_handler.batch_metrics(stream_names) == batch_metrics_expected_response
-    metricpublisher.lambda_handler.CLIENT.get_log_events.assert_called_with(logGroupName=log_group_name,logStreamName=stream_name)
+    metricpublisher.lambda_handler.LOG_CLIENT.get_log_events.assert_called_with(logGroupName=log_group_name,logStreamName=stream_name)
 
 def test_batch_metrics_multiple_metrics(mocker):
     """Test to ensure that batch_metrics works properly
@@ -206,13 +206,26 @@ def test_batch_metrics_multiple_metrics(mocker):
     }
     combined_metrics_list = [single_metric_1,single_metric_2,single_metric_3]
     batch_metrics_expected_response = combined_metrics_list + combined_metrics_list + combined_metrics_list
-    mocker.patch.object(metricpublisher.lambda_handler, 'CLIENT')
+    mocker.patch.object(metricpublisher.lambda_handler, 'LOG_CLIENT')
     mocker.patch.object(metricpublisher.lambda_handler, 'get_log_group_name')
     mocker.patch.object(metricpublisher.lambda_handler, 'get_namespace')
-    metricpublisher.lambda_handler.CLIENT.get_log_events.return_value = get_log_events_response
+    metricpublisher.lambda_handler.LOG_CLIENT.get_log_events.return_value = get_log_events_response
     metricpublisher.lambda_handler.get_log_group_name.return_value = log_group_name
     metricpublisher.lambda_handler.get_namespace.return_value = namespace
     assert metricpublisher.lambda_handler.batch_metrics(stream_names) == batch_metrics_expected_response
+
+def test_format_metric_simple_case():
+    metric_before = events.simple_metric_before()
+    metric_expected = events.simple_metric_after_expected()
+    result = metricpublisher.lambda_handler.format_metric(metric_before)
+    assert result == metric_expected
+
+def test_format_metric_complex_case():
+    metric_before = events.complex_metric_before()
+    metric_expected = events.complex_metric_after_expected()
+    result = metricpublisher.lambda_handler.format_metric(metric_before)
+    assert result == metric_expected
+
 
 def _assert_error_response(result, error_type):
     """Helper function to assert that the correct type of error was thrown"""

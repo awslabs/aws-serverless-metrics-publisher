@@ -7,13 +7,19 @@ import config
 import time
 import ast
 
-CLIENT = boto3.client('logs')
+LOG_CLIENT = boto3.client('logs')
+TABLE_CLIENT = boto3.client('dynamodb')
 CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
 
 
 def get_log_group_name():
     """Get the log group name."""
-    return config.log_group_name
+    return config.LOG_GROUP_NAME
+
+
+def get_table_name():
+    """Get the checkpoint table name."""
+    return config.CHECKPOINT_TABLE_NAME
 
 
 def get_namespace():
@@ -44,11 +50,11 @@ def log_event(event, context):
     request_id = event["request_id"]
     event = str(event)
     new_log_stream_name = '_'.join((get_namespace(), request_id))
-    CLIENT.create_log_stream(
+    LOG_CLIENT.create_log_stream(
         logGroupName=get_log_group_name(),
         logStreamName=new_log_stream_name
     )
-    CLIENT.put_log_events(
+    LOG_CLIENT.put_log_events(
         logGroupName=get_log_group_name(),
         logStreamName=new_log_stream_name,
         logEvents=[
@@ -77,7 +83,7 @@ def batch_metrics(log_stream_names):
     if len(log_stream_names) == 0:
         return metrics_list
     for stream in log_stream_names:
-        log_event = CLIENT.get_log_events(
+        log_event = LOG_CLIENT.get_log_events(
             logGroupName=get_log_group_name(),
             logStreamName=stream
         )
@@ -85,6 +91,46 @@ def batch_metrics(log_stream_names):
         for metric in event_message['metric_data']:
             metrics_list.append(metric)
     return metrics_list
+
+
+def format_metric(metric):
+    """Format a single metric.
+
+    Parameters:
+        metric (dict): The metric to format
+
+    Returns:
+        metric (dict): The new metric in
+        the format needed for the put_metric_data
+        API.
+
+    """
+    metric_keys = metric.keys()
+    metric["MetricName"] = metric.pop("metric_name")
+    if "dimensions" in metric_keys:
+        for dimension in metric["dimensions"]:
+            dimension["Name"] = dimension.pop("name")
+            dimension["Value"] = dimension.pop("value")
+        metric["Dimensions"] = metric.pop("dimensions")
+    if "timestamp" in metric_keys:
+        metric["Timestamp"] = metric.pop("timestamp")
+    if "value" in metric_keys:
+        metric["Value"] = metric.pop("value")
+    else:
+        metric["statistic_values"]["SampleCount"] =\
+            metric["statistic_values"].pop("sample_count")
+        metric["statistic_values"]["Sum"] =\
+            metric["statistic_values"].pop("sum")
+        metric["statistic_values"]["Minimum"] =\
+            metric["statistic_values"].pop("minimum")
+        metric["statistic_values"]["Maximum"] =\
+            metric["statistic_values"].pop("maximum")
+        metric["StatisticValues"] = metric.pop("statistic_values")
+    if "unit" in metric_keys:
+        metric["Unit"] = metric.pop("unit")
+    if "storage_resolution" in metric_keys:
+        metric["StorageResolution"] = metric.pop("storage_resolution")
+    return metric
 
 
 def _error_response(error):
