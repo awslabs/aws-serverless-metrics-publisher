@@ -375,3 +375,67 @@ def dimension_item_wrong_property():
             }
         ]
     }
+
+@pytest.fixture()
+def simple_metric_before():
+    return {
+        "metric_name": "theMetricName",
+        "value": 123,
+    }
+
+@pytest.fixture()
+def simple_metric_after_expected():
+    return {
+        "MetricName":"theMetricName",
+        "Value": 123,
+    }
+
+@pytest.fixture()
+def complex_metric_before():
+    return {
+        "metric_name": "theMetricname",
+        "dimensions": [
+            {
+                "name": "thename1",
+                "value": "thevalue1"
+            },
+            {
+                "name": "thename2",
+                "value": "thevalue2"
+            }
+        ],
+        "timestamp": 1528236844480,
+        "statistic_values": {
+            "sample_count": 12.17,
+            "sum": 12.17,
+            "minimum": 12.17,
+            "maximum": 12.17
+        },
+        "unit": "Seconds",
+        "storage_resolution": 12
+    }
+
+@pytest.fixture()
+def complex_metric_after_expected():
+    return {
+        "MetricName": "theMetricname",
+        "Dimensions": [
+            {
+                "Name": "thename1",
+                "Value": "thevalue1"
+            },
+            {
+                "Name": "thename2",
+                "Value": "thevalue2"
+            }
+        ],
+        "Timestamp": 1528236844480,
+        "StatisticValues": {
+            "SampleCount": 12.17,
+            "Sum": 12.17,
+            "Minimum": 12.17,
+            "Maximum": 12.17
+        },
+        "Unit": "Seconds",
+        "StorageResolution": 12
+    }

@@ -5,17 +5,18 @@ import schema
 import boto3
 import config
 import time
+import ast
 
 CLIENT = boto3.client('logs')
 CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
 
 
-def get_LOG_GROUP_NAME():
+def get_log_group_name():
     """Get the log group name."""
-    return config.LOG_GROUP_NAME
+    return config.log_group_name
 
 
-def get_NAMESPACE():
+def get_namespace():
     """Get the namespace."""
     return config.NAMESPACE_PARAM
 
@@ -33,7 +34,7 @@ def log_event(event, context):
         the user would like to put to cloudwatch.
 
     Returns:
-        (str) message upon successful execution
+        None
 
     """
     try:
@@ -42,13 +43,13 @@ def log_event(event, context):
         return _error_response(err)
     request_id = event["request_id"]
     event = str(event)
-    new_log_stream_name = '_'.join((get_NAMESPACE(), request_id))
+    new_log_stream_name = '_'.join((get_namespace(), request_id))
     CLIENT.create_log_stream(
-        logGroupName=get_LOG_GROUP_NAME(),
+        logGroupName=get_log_group_name(),
         logStreamName=new_log_stream_name
     )
     CLIENT.put_log_events(
-        logGroupName=get_LOG_GROUP_NAME(),
+        logGroupName=get_log_group_name(),
         logStreamName=new_log_stream_name,
         logEvents=[
             {
@@ -57,6 +58,33 @@ def log_event(event, context):
             },
         ],
     )
+
+
+def batch_metrics(log_stream_names):
+    """Batch together metrics.
+
+    Parameters:
+        log_stream_names (list): A list of
+        log streams containing log events
+        whose 'message' field contains metrics.
+
+    Returns:
+        metrics (list): A list of metrics to
+        be put to cloudwatch.
+
+    """
+    metrics_list = []
+    if len(log_stream_names) == 0:
+        return metrics_list
+    for stream in log_stream_names:
+        log_event = CLIENT.get_log_events(
+            logGroupName=get_log_group_name(),
+            logStreamName=stream
+        )
+        event_message = ast.literal_eval(log_event['events'][0]['message'])
+        for metric in event_message['metric_data']:
+            metrics_list.append(metric)
+    return metrics_list
 
 
 def _error_response(error):
