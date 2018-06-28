@@ -7,9 +7,12 @@ import config
 import time
 import ast
 
+
 LOG_CLIENT = boto3.client('logs')
-TABLE_CLIENT = boto3.client('dynamodb')
+DYNAMODB_CLIENT = boto3.client('dynamodb')
+CLOUDWATCH_CLIENT = boto3.client('cloudwatch')
 CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
+CURSOR_KEY = 'cursor_for_next_batch'
 
 
 def get_log_group_name():
@@ -131,6 +134,88 @@ def format_metric(metric):
     if "storage_resolution" in metric_keys:
         metric["StorageResolution"] = metric.pop("storage_resolution")
     return metric
+
+
+def get_next_stream_index(log_streams, last_event_time):
+    """Get the index of the first log stream with new event.
+
+    Parameters:
+        log_streams (list): All of the log streams
+            in the log group.
+        last_event_time (int): The timestamp (in
+            Milliseconds) of the last event that was
+            put to cloudwatch, or 0 if no items have
+            been put to cloudwatch.
+
+    Returns:
+        index (int): The index in the list
+            of log streams of where to start
+            batching metrics.
+        None: if there are no new events
+
+    """
+    for index in range(len(log_streams)):
+        if "lastEventTimestamp" in log_streams[index]:
+            if last_event_time == 0:
+                return index
+            elif int(log_streams[index]['lastEventTimestamp']) == \
+                    int(last_event_time):
+                    return index + 1
+    if last_event_time != 0:
+        for index in range(len(log_streams)):
+            if "lastEventTimestamp" in log_streams[index]:
+                return index
+
+
+def metric_publisher(event, context):
+    """Publish metrics to cloudwatch.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+
+    """
+    log_streams = LOG_CLIENT.describe_log_streams(
+        logGroupName=get_log_group_name(),
+        orderBy='LastEventTime'
+    )['logStreams']
+    item_data = DYNAMODB_CLIENT.get_item(
+        Key={
+            'cursor': {
+                'S': CURSOR_KEY
+            }
+        },
+        TableName=get_table_name()
+    )
+    if 'Item' not in item_data:
+        next_stream_index = get_next_stream_index(log_streams, 0)
+    else:
+        last_event_time = item_data['Item']['last_event_time']['N']
+        next_stream_index = get_next_stream_index(log_streams, last_event_time)
+    if next_stream_index in [None, len(log_streams)]:
+        return
+    DYNAMODB_CLIENT.put_item(
+        TableName=get_table_name(),
+        Item={
+            'cursor': {
+                'S': CURSOR_KEY
+            },
+            'last_event_time': {
+                'N': str(log_streams[-1]['lastEventTimestamp']),
+            },
+        },
+        ReturnConsumedCapacity='NONE',
+    )
+    streams_with_new_events = [stream['logStreamName'] for stream in
+                               log_streams[next_stream_index:]]
+    metrics_to_put = batch_metrics(streams_with_new_events)
+    metrics_to_put = [format_metric(metric) for metric in metrics_to_put]
+    CLOUDWATCH_CLIENT.put_metric_data(
+        Namespace=get_namespace(),
+        MetricData=metrics_to_put
+    )
 
 
 def _error_response(error):

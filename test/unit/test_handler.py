@@ -124,7 +124,8 @@ def test_log_event_client_function_calls(mocker):
     metricpublisher.lambda_handler.LOG_CLIENT.put_log_events.assert_called_with(logGroupName=log_group_name, logStreamName=log_stream_name,logEvents = log_events)
 
 def test_batch_metrics_client_function_call(mocker):
-    """Test to ensure that get_log_events was called with the correct input."""
+    """Test to ensure that batch_metrics functions
+    were called with the correct input."""
     log_group_name = 'metricPublisherAppLogGroup'
     namespace = 'metricPublisherAppNamespace'
     num_iters = 3
@@ -215,16 +216,82 @@ def test_batch_metrics_multiple_metrics(mocker):
     assert metricpublisher.lambda_handler.batch_metrics(stream_names) == batch_metrics_expected_response
 
 def test_format_metric_simple_case():
+    """Test that the format_metric function works for a basic metric."""
     metric_before = events.simple_metric_before()
     metric_expected = events.simple_metric_after_expected()
     result = metricpublisher.lambda_handler.format_metric(metric_before)
     assert result == metric_expected
 
 def test_format_metric_complex_case():
+    """Test that the format_metric function works for a more complicated metric."""
     metric_before = events.complex_metric_before()
     metric_expected = events.complex_metric_after_expected()
     result = metricpublisher.lambda_handler.format_metric(metric_before)
     assert result == metric_expected
+
+def test_get_next_stream_index_empty_list():
+    """Test that get_next_stream_index returns none when
+    there are no new log_streams."""
+    log_streams = []
+    assert metricpublisher.lambda_handler.get_next_stream_index(log_streams,0) == None
+
+def test_get_next_stream_index_normal_case():
+    """Test that get_next_stream_index returns the
+    correct starting point in the normal case (when
+    there are new log_streams)."""
+    log_streams = events.normal_log_streams()
+    timestamp = 1530205415139
+    expected_response = 1
+    assert metricpublisher.lambda_handler.get_next_stream_index(log_streams,timestamp) == expected_response
+
+def test_get_next_stream_index_deleted_streams():
+    """Test that ensures get_next_stream_index
+    still works in the case that the
+    customer manually deletes the log streams
+    to clear up space."""
+    log_streams = events.normal_log_streams()
+    timestamp = 1530205415138
+    expected_response = 0
+    assert metricpublisher.lambda_handler.get_next_stream_index(log_streams,timestamp) == expected_response
+
+def test_metric_publisher_client_function_calls(mocker):
+    """Test to ensure that metric_publisher functions
+    were called with the correct input."""
+    log_streams_response = events.several_log_streams()
+    get_item_response = events.standard_item()
+    next_stream_index_response = 3
+    batch_metrics_response = events.metrics_before()
+    metrics_to_put_expected = events.metrics_to_put_expected()
+    log_group_name = 'metricPublisherAppLogGroup'
+    table_name = 'MetricPublisherAppDynamoDBTable'
+    namespace = 'metricPublisherAppNamespace'
+    item_key = {
+        'cursor': {
+            'S': 'cursor_for_next_batch'
+        }
+    }
+    mocker.patch.object(metricpublisher.lambda_handler, 'LOG_CLIENT')
+    mocker.patch.object(metricpublisher.lambda_handler, 'DYNAMODB_CLIENT')
+    mocker.patch.object(metricpublisher.lambda_handler, 'CLOUDWATCH_CLIENT')
+    mocker.patch.object(metricpublisher.lambda_handler, 'get_next_stream_index')
+    mocker.patch.object(metricpublisher.lambda_handler, 'batch_metrics')
+    mocker.patch.object(metricpublisher.lambda_handler, 'get_log_group_name')
+    mocker.patch.object(metricpublisher.lambda_handler, 'get_table_name')
+    mocker.patch.object(metricpublisher.lambda_handler, 'get_namespace')
+    metricpublisher.lambda_handler.LOG_CLIENT.describe_log_streams.return_value = log_streams_response
+    metricpublisher.lambda_handler.DYNAMODB_CLIENT.get_item.return_value = get_item_response
+    metricpublisher.lambda_handler.get_next_stream_index.return_value = next_stream_index_response
+    metricpublisher.lambda_handler.batch_metrics.return_value = batch_metrics_response
+    metricpublisher.lambda_handler.get_log_group_name.return_value = log_group_name
+    metricpublisher.lambda_handler.get_table_name.return_value = table_name
+    metricpublisher.lambda_handler.get_namespace.return_value = namespace
+    assert metricpublisher.lambda_handler.metric_publisher(None, None) == None
+    metricpublisher.lambda_handler.LOG_CLIENT.describe_log_streams.assert_called_with(logGroupName=log_group_name,orderBy='LastEventTime')
+    metricpublisher.lambda_handler.DYNAMODB_CLIENT.get_item.assert_called_with(Key=item_key,TableName=table_name)
+    metricpublisher.lambda_handler.CLOUDWATCH_CLIENT.put_metric_data.assert_called_with(Namespace=namespace,MetricData=metrics_to_put_expected)
+
+
+
 
 
 def _assert_error_response(result, error_type):
