@@ -7,10 +7,12 @@
             "type": "object",
             "properties": {
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                 },
                 "value": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                 }
             },
             "required": [
@@ -51,7 +53,8 @@
             "type": "object",
             "properties": {
                 "metric_name": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                 },
                 "dimensions": {
                     "$ref": "#/definitions/dimensions"
@@ -136,7 +139,8 @@
     },
     "properties": {
         "request_id": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
         },
         "metric_data": {
             "$ref": "#/definitions/metric_data"
