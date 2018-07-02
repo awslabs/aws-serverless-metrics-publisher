@@ -99,6 +99,27 @@ def test_dimension_item_wrong_property():
         metricpublisher.lambda_handler.log_event(data,None),"ValidationError"
     )
 
+def test_empty_request_id():
+    """Test to make sure request_id is nonempty."""
+    data = events.empty_request_id()
+    _assert_error_response(
+        metricpublisher.lambda_handler.log_event(data,None),"ValidationError"
+    )
+
+def test_empty_dimension_name():
+    """Test to make sure request_id is nonempty."""
+    data = events.empty_dimension_name()
+    _assert_error_response(
+        metricpublisher.lambda_handler.log_event(data,None),"ValidationError"
+    )
+
+def test_empty_metric_name():
+    """Test to make sure request_id is nonempty."""
+    data = events.empty_metric_name()
+    _assert_error_response(
+        metricpublisher.lambda_handler.log_event(data,None),"ValidationError"
+    )
+
 def test_log_event_client_function_calls(mocker):
     """Test to ensure that create_log_stream and put_log_events are called with the correct parameters."""
     mocker.patch.object(metricpublisher.lambda_handler, 'get_current_time')
