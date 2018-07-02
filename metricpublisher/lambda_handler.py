@@ -8,8 +8,10 @@ import time
 import ast
 
 LOG_CLIENT = boto3.client('logs')
-TABLE_CLIENT = boto3.client('dynamodb')
+DYNAMODB_CLIENT = boto3.client('dynamodb')
+CLOUDWATCH_CLIENT = boto3.client('cloudwatch')
 CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
+CURSOR_KEY = 'cursor_for_next_batch'
 
 
 def get_log_group_name():
@@ -66,13 +68,13 @@ def log_event(event, context):
     )
 
 
-def batch_metrics(log_stream_names):
+def batch_metrics(log_events):
     """Batch together metrics.
 
     Parameters:
-        log_stream_names (list): A list of
-        log streams containing log events
-        whose 'message' field contains metrics.
+        log_events (list): A list of
+        log events whose 'message'
+        field contains metrics.
 
     Returns:
         metrics (list): A list of metrics to
@@ -80,14 +82,8 @@ def batch_metrics(log_stream_names):
 
     """
     metrics_list = []
-    if len(log_stream_names) == 0:
-        return metrics_list
-    for stream in log_stream_names:
-        log_event = LOG_CLIENT.get_log_events(
-            logGroupName=get_log_group_name(),
-            logStreamName=stream
-        )
-        event_message = ast.literal_eval(log_event['events'][0]['message'])
+    for event in log_events:
+        event_message = ast.literal_eval(event['message'])
         for metric in event_message['metric_data']:
             metrics_list.append(metric)
     return metrics_list
@@ -131,6 +127,57 @@ def format_metric(metric):
     if "storage_resolution" in metric_keys:
         metric["StorageResolution"] = metric.pop("storage_resolution")
     return metric
+
+
+def metric_publisher(event, context):
+    """Publish metrics to cloudwatch.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+
+    """
+    item_data = DYNAMODB_CLIENT.get_item(
+        Key={
+            'cursor': {
+                'S': CURSOR_KEY
+            }
+        },
+        TableName=get_table_name()
+    )
+    if 'Item' not in item_data:
+        start_time = 0
+    else:
+        start_time = int(item_data['Item']['cursor_timestamp']['N'])
+    next_timestamp = get_current_time()
+    log_events = LOG_CLIENT.filter_log_events(
+        logGroupName=get_log_group_name(),
+        startTime=start_time,
+        endTime=next_timestamp
+    )['events']
+    metrics_to_put = [format_metric(metric)
+                      for metric in batch_metrics(log_events)]
+    try:
+        CLOUDWATCH_CLIENT.put_metric_data(
+            Namespace=get_namespace(),
+            MetricData=metrics_to_put
+        )
+    except Exception:
+        next_timestamp = start_time
+    DYNAMODB_CLIENT.put_item(
+        TableName=get_table_name(),
+        Item={
+            'cursor': {
+                'S': CURSOR_KEY
+            },
+            'cursor_timestamp': {
+                'N': str(next_timestamp),
+            },
+        },
+        ReturnConsumedCapacity='NONE',
+    )
 
 
 def _error_response(error):
