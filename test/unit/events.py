@@ -1,4 +1,4 @@
-"""Collection of events for schema validation"""
+"""Collection of events for unit tests."""
 import pytest
 import uuid
 
@@ -361,6 +361,96 @@ def dimension_item_wrong_property():
                     {
                         "name": "thename2",
                         "Value": "thevalue2"
+                    }
+                ],
+                "timestamp": 1528236844480,
+                "statistic_values": {
+                    "sample_count": 12.17,
+                    "sum": 12.17,
+                    "minimum": 12.17,
+                    "maximum": 12.17
+                },
+                "unit": "Seconds",
+                "storage_resolution": 12
+            }
+        ]
+    }
+
+@pytest.fixture()
+def empty_request_id():
+    return {
+        "request_id": "",
+        "metric_data": [
+            {
+                "metric_name": "theMetricname",
+                "dimensions": [
+                    {
+                        "name": "thename1",
+                        "value": "thevalue1"
+                    },
+                    {
+                        "name": "thename2",
+                        "value": "thevalue2"
+                    }
+                ],
+                "timestamp": 1528236844480,
+                "statistic_values": {
+                    "sample_count": 12.17,
+                    "sum": 12.17,
+                    "minimum": 12.17,
+                    "maximum": 12.17
+                },
+                "unit": "Seconds",
+                "storage_resolution": 12
+            }
+        ]
+    }
+
+@pytest.fixture()
+def empty_dimension_name():
+    return {
+        "request_id": "an id",
+        "metric_data": [
+            {
+                "metric_name": "theMetricname",
+                "dimensions": [
+                    {
+                        "name": "thename1",
+                        "value": "thevalue1"
+                    },
+                    {
+                        "name": "",
+                        "value": "thevalue2"
+                    }
+                ],
+                "timestamp": 1528236844480,
+                "statistic_values": {
+                    "sample_count": 12.17,
+                    "sum": 12.17,
+                    "minimum": 12.17,
+                    "maximum": 12.17
+                },
+                "unit": "Seconds",
+                "storage_resolution": 12
+            }
+        ]
+    }
+
+@pytest.fixture()
+def empty_metric_name():
+    return {
+        "request_id": "an id",
+        "metric_data": [
+            {
+                "metric_name": "",
+                "dimensions": [
+                    {
+                        "name": "thename1",
+                        "value": "thevalue1"
+                    },
+                    {
+                        "name": "thename2",
+                        "value": "thevalue2"
                     }
                 ],
                 "timestamp": 1528236844480,
