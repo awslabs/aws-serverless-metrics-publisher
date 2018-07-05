@@ -1,5 +1,4 @@
 import json
-import pytest
 import events
 from jsonschema import ValidationError
 from pytest_mock import mocker
@@ -167,7 +166,7 @@ def test_metric_publisher_client_function_calls(mocker):
     batch_metrics_response = events.metrics_before()
     metrics_to_put_expected = events.metrics_to_put_expected()
     log_group_name = 'metricPublisherAppLogGroup'
-    table_name = 'MetricPublisherAppDynamoDBTable'
+    table_name = 'metricPublisherAppDynamoDBTable'
     namespace = 'metricPublisherAppNamespace'
     current_time = int(time.time()*CONVERT_SECONDS_TO_MILLIS_FACTOR)
     item_key = {
