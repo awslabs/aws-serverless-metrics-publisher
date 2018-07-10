@@ -7,11 +7,13 @@ import config
 import time
 import ast
 
+
 LOG_CLIENT = boto3.client('logs')
 DYNAMODB_CLIENT = boto3.client('dynamodb')
 CLOUDWATCH_CLIENT = boto3.client('cloudwatch')
 CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
 CURSOR_KEY = 'cursor_for_next_batch'
+MAX_BATCH_SIZE = 25
 
 
 def get_log_group_name():
@@ -81,12 +83,17 @@ def batch_metrics(log_events):
         be put to cloudwatch.
 
     """
+    current_length = 0
     metrics_list = []
     for event in log_events:
         event_message = ast.literal_eval(event['message'])
+        length_of_next_event = len(event_message['metric_data'])
+        if current_length + length_of_next_event > MAX_BATCH_SIZE:
+            return {'metrics': metrics_list, 'time': event['timestamp']}
         for metric in event_message['metric_data']:
             metrics_list.append(metric)
-    return metrics_list
+        current_length += length_of_next_event
+    return {'metrics': metrics_list, 'time': 0}
 
 
 def format_metric(metric):
@@ -137,6 +144,7 @@ def metric_publisher(event, context):
 
     Returns:
         None
+        0 (int): if no new metrics were published
 
     """
     item_data = DYNAMODB_CLIENT.get_item(
@@ -157,8 +165,14 @@ def metric_publisher(event, context):
         startTime=start_time,
         endTime=next_timestamp
     )['events']
-    metrics_to_put = [format_metric(metric)
-                      for metric in batch_metrics(log_events)]
+    if len(log_events) == 0:
+        return 0
+    batch = batch_metrics(log_events)
+    metrics_to_put = [format_metric(metric) for metric in batch['metrics']]
+    need_to_call_again = False
+    if batch['time'] != 0:
+        next_timestamp = batch['time']
+        need_to_call_again = True
     try:
         CLOUDWATCH_CLIENT.put_metric_data(
             Namespace=get_namespace(),
@@ -178,6 +192,9 @@ def metric_publisher(event, context):
         },
         ReturnConsumedCapacity='NONE',
     )
+    if need_to_call_again:
+        while metric_publisher(None, None) == 0:
+            pass
 
 
 def _error_response(error):

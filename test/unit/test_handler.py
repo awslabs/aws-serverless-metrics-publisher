@@ -157,6 +157,19 @@ def test_format_metric_complex_case():
     result = metricpublisher.lambda_handler.format_metric(metric_before)
     assert result == metric_expected
 
+def test_batch_metrics_normal_case():
+    """Test that batch metrics works when there are less than 26 new metrics."""
+    sample_log_events = events.log_events_normal()
+    expected_response = events.batch_metrics_normal_expected()
+    assert metricpublisher.lambda_handler.batch_metrics(sample_log_events) == expected_response
+
+def test_batch_metrics_too_many_metrics():
+    """Test that batch metrics returns less than 26 metrics
+    when there are more than 25 new metrics to publish."""
+    too_many_log_events = events.many_log_events()
+    expected_response = events.batch_metrics_many_events()
+    assert metricpublisher.lambda_handler.batch_metrics(too_many_log_events) == expected_response
+
 def test_metric_publisher_client_function_calls(mocker):
     """Test to ensure that metric_publisher functions
     were called with the correct input."""

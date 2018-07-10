@@ -3,12 +3,11 @@ import pytest
 import uuid
 import time
 
-
 @pytest.fixture()
-def input_event_basic():
+def input_events():
     new_uuid = str(uuid.uuid4())
     request_id = "request_id_" + new_uuid
-    input = {
+    input_1 = {
         "request_id": request_id,
         "metric_data": [
             {
@@ -24,13 +23,9 @@ def input_event_basic():
             }
         ]
     }
-    return input
-
-@pytest.fixture()
-def input_events_standard():
     new_uuid = str(uuid.uuid4())
     request_id = "request_id_" + new_uuid
-    input = {
+    input_2 = {
         "request_id": request_id,
         "metric_data": [
             {
@@ -57,13 +52,9 @@ def input_events_standard():
             }
         ]
     }
-    return input
-
-@pytest.fixture()
-def input_events_complex():
     new_uuid = str(uuid.uuid4())
     request_id = "request_id_" + new_uuid
-    input = {
+    input_3 = {
         "request_id": request_id,
         "metric_data": [
             {
@@ -80,17 +71,57 @@ def input_events_complex():
                     "sum": 217,
                     "minimum": 1,
                     "maximum": 555
-                },
+                }
             }
         ]
     }
-    return input
+    new_uuid = str(uuid.uuid4())
+    request_id = "request_id_" + new_uuid
+    the_data = []
+    for i in range(20):
+        single_point = {
+            "metric_name": "theMetricName4",
+            "dimensions": [
+                {
+                    "name": "test_name",
+                    "value": "test_value"
+                }
+            ],
+            "timestamp": time.time(),
+            "value": 42
+        }
+        the_data.append(single_point)
+    input_4 = {
+        "request_id": request_id,
+        "metric_data": the_data
+    }
+    new_uuid = str(uuid.uuid4())
+    request_id = "request_id_" + new_uuid
+    the_data = []
+    for i in range(10):
+        single_point = {
+            "metric_name": "theMetricName4",
+            "dimensions": [
+                {
+                    "name": "test_name",
+                    "value": "test_value"
+                }
+            ],
+            "timestamp": time.time(),
+            "value": 39
+        }
+        the_data.append(single_point)
+    input_5 = {
+        "request_id": request_id,
+        "metric_data": the_data
+    }
+    return [input_1, input_2, input_3, input_4, input_5]
 
 @pytest.fixture()
-def sample_query_basic():
+def sample_queries():
     return [
         {
-            'Id': 'the_id',
+            'Id': 'id_1',
             'MetricStat': {
                 'Metric': {
                     'Namespace': 'metricPublisherAppNamespace',
@@ -102,29 +133,7 @@ def sample_query_basic():
                         }
                     ]
                 },
-                'Period': 5,
-                'Stat': 'Average'
-            }
-        }
-    ]
-
-@pytest.fixture()
-def sample_queries_standard():
-    return [
-        {
-            'Id': 'id_1',
-            'MetricStat': {
-                'Metric': {
-                    'Namespace': 'metricPublisherAppNamespace',
-                    'MetricName': 'theMetricName2',
-                    'Dimensions': [
-                        {
-                            'Name': 'test_name',
-                            'Value': 'test_value'
-                        }
-                    ]
-                },
-                'Period': 5,
+                'Period': 1,
                 'Stat': 'Average'
             }
         },
@@ -141,17 +150,29 @@ def sample_queries_standard():
                         }
                     ]
                 },
-                'Period': 5,
+                'Period': 1,
+                'Stat': 'Average'
+            }
+        },
+        {
+            'Id': 'id_3',
+            'MetricStat': {
+                'Metric': {
+                    'Namespace': 'metricPublisherAppNamespace',
+                    'MetricName': 'theMetricName2',
+                    'Dimensions': [
+                        {
+                            'Name': 'test_name',
+                            'Value': 'test_value'
+                        }
+                    ]
+                },
+                'Period': 1,
                 'Stat': 'Sum'
             }
-        }
-    ]
-
-@pytest.fixture()
-def sample_queries_complex():
-    return [
+        },
         {
-            'Id': 'id_1',
+            'Id': 'id_4',
             'MetricStat': {
                 'Metric': {
                     'Namespace': 'metricPublisherAppNamespace',
@@ -168,62 +189,96 @@ def sample_queries_complex():
             }
         },
         {
-            'Id': 'id_2',
-            'MetricStat': {
-                'Metric': {
-                    'Namespace': 'metricPublisherAppNamespace',
-                    'MetricName': 'theMetricName3',
-                    'Dimensions': [
-                        {
-                            'Name': 'test_name',
-                            'Value': 'test_value'
-                        }
-                    ]
-                },
-                'Period': 5,
-                'Stat': 'Sum'
-            }
-        },
-        {
-            'Id': 'id_3',
-            'MetricStat': {
-                'Metric': {
-                    'Namespace': 'metricPublisherAppNamespace',
-                    'MetricName': 'theMetricName3',
-                    'Dimensions': [
-                        {
-                            'Name': 'test_name',
-                            'Value': 'test_value'
-                        }
-                    ]
-                },
-                'Period': 5,
-                'Stat': 'Minimum'
-            }
-        },
-        {
-            'Id': 'id_4',
-            'MetricStat': {
-                'Metric': {
-                    'Namespace': 'metricPublisherAppNamespace',
-                    'MetricName': 'theMetricName3',
-                    'Dimensions': [
-                        {
-                            'Name': 'test_name',
-                            'Value': 'test_value'
-                        }
-                    ]
-                },
-                'Period': 5,
-                'Stat': 'Maximum'
-            }
-        },
-        {
             'Id': 'id_5',
             'MetricStat': {
                 'Metric': {
                     'Namespace': 'metricPublisherAppNamespace',
                     'MetricName': 'theMetricName3',
+                    'Dimensions': [
+                        {
+                            'Name': 'test_name',
+                            'Value': 'test_value'
+                        }
+                    ]
+                },
+                'Period': 1,
+                'Stat': 'Sum'
+            }
+        },
+        {
+            'Id': 'id_6',
+            'MetricStat': {
+                'Metric': {
+                    'Namespace': 'metricPublisherAppNamespace',
+                    'MetricName': 'theMetricName3',
+                    'Dimensions': [
+                        {
+                            'Name': 'test_name',
+                            'Value': 'test_value'
+                        }
+                    ]
+                },
+                'Period': 1,
+                'Stat': 'Minimum'
+            }
+        },
+        {
+            'Id': 'id_7',
+            'MetricStat': {
+                'Metric': {
+                    'Namespace': 'metricPublisherAppNamespace',
+                    'MetricName': 'theMetricName3',
+                    'Dimensions': [
+                        {
+                            'Name': 'test_name',
+                            'Value': 'test_value'
+                        }
+                    ]
+                },
+                'Period': 1,
+                'Stat': 'Maximum'
+            }
+        },
+        {
+            'Id': 'id_8',
+            'MetricStat': {
+                'Metric': {
+                    'Namespace': 'metricPublisherAppNamespace',
+                    'MetricName': 'theMetricName3',
+                    'Dimensions': [
+                        {
+                            'Name': 'test_name',
+                            'Value': 'test_value'
+                        }
+                    ]
+                },
+                'Period': 1,
+                'Stat': 'Average'
+            }
+        },
+        {
+            'Id': 'id_9',
+            'MetricStat': {
+                'Metric': {
+                    'Namespace': 'metricPublisherAppNamespace',
+                    'MetricName': 'theMetricName4',
+                    'Dimensions': [
+                        {
+                            'Name': 'test_name',
+                            'Value': 'test_value'
+                        }
+                    ]
+                },
+                'Period': 5,
+                'Stat': 'SampleCount'
+            }
+        },
+        {
+            'Id': 'id_10',
+            'MetricStat': {
+                'Metric': {
+                    'Namespace': 'metricPublisherAppNamespace',
+                    'MetricName': 'theMetricName4',
                     'Dimensions': [
                         {
                             'Name': 'test_name',
