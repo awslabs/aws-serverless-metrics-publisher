@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: ‘2010-09-09’
+Transform: ‘AWS::Serverless-2016-10-31’
+Description: <-
+  This app accepts metric input in JSON format,
+  and puts that input to a log group. The
+  metric_publisher lambda function is triggered
+  by the cloudwatch events rule on a regular
+  schedule, batches all the metrics together
+  using the cursor from the Dynamo DB table,
+  and publishes those metrics to cloudwatch.
+
+
+Parameters:
+  namespace:
+    Type: String
+    Description: <-
+      The namespace to be used whenever
+      the put metric data API is called.
+  batching_frequency:
+    Type: Number
+    Description: <-
+      The frequency (in minutes) that
+      the events rule will trigger the
+      metric_publisher function.
+    Default: 30
+
+
+Resources:
+  metric_logger:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: lambda_handler.log_event
+      Runtime: Python 3.6
+      CodeUri: .
+      Description: <-
+        This function accepts an event in JSON
+        format, validates it using JSON schema,
+        and puts the event to a log group.
+      Environment:
+        Variables:
+          LOG_GROUP_NAME: !Ref metrics_log_group
+
+  checkpoint_table:
+    Type: 'AWS::Serverless::SimpleTable'
+    Properties:
+      PrimaryKey:
+        Name: cursor
+        Type: String
+
+  metrics_log_group:
+    Type: 'AWS::Logs:LogGroup'
+    Properties:
+      RetentionInDays: 7
+
+  events_rule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      Description: <-
+        Events rule that triggers the
+        metric_publisher lambda function
+        using the frequency parameter.
+        Default value is once every 30 minutes.
+      ScheduledExpression: 'rate(!Ref batching_frequency minutes)'
+    Environment:
+      Variables:
+        LAMBDA_FUNCTION_NAME: !Ref metric_publisher
+
+  permission_for_rule_to_invoke_lambda:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName:
+        Ref: 'metric_publisher'
+      Action: 'lambda:InvokeFunction'
+      Principal: 'events.amazonaws.com'
+      SourceArn:
+        Fn::GetAtt:
+          - 'events_rule'
+          - 'Arn'
+
+  metric_publisher:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: lambda_handler.metric_publisher
+      Runtime: Python 3.6
+      CodeUri: .
+      Description: <-
+        This function retrieves and updates
+        the timestamp cursor from the Dynamo
+        DB table, retrieves the new metrics,
+        and puts them to cloudwatch.
+      Environment:
+        Variables:
+          LOG_GROUP_NAME: !Ref metrics_log_group
+          CHECKPOINT_TABLE_NAME: !Ref checkpoint_table
