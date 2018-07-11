@@ -22,16 +22,17 @@ Parameters:
       The frequency (in minutes) that
       the events rule will trigger the
       metric_publisher function.
-    Default: 30
-
+    Default: 5
+    MinValue: 1
+    MaxValue: 60
 
 Resources:
   metric_logger:
     Type: 'AWS::Serverless::Function'
     Properties:
+      CodeUri: metricpublisher/
       Handler: lambda_handler.log_event
       Runtime: Python 3.6
-      CodeUri: .
       Description: <-
         This function accepts an event in JSON
         format, validates it using JSON schema,
