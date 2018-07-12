@@ -83,17 +83,16 @@ def batch_metrics(log_events):
         be put to cloudwatch.
 
     """
-    current_length = 0
     metrics_list = []
+    log_streams_set = set()
     for event in log_events:
-        event_message = ast.literal_eval(event['message'])
-        length_of_next_event = len(event_message['metric_data'])
-        if current_length + length_of_next_event > MAX_BATCH_SIZE:
-            return {'metrics': metrics_list, 'time': event['timestamp']}
-        for metric in event_message['metric_data']:
-            metrics_list.append(metric)
-        current_length += length_of_next_event
-    return {'metrics': metrics_list, 'time': 0}
+        log_stream_name = event['logStreamName']
+        if log_stream_name not in log_streams_set:
+            event_message = ast.literal_eval(event['message'])
+            for metric in event_message['metric_data']:
+                metrics_list.append(metric)
+        log_streams_set.add(log_stream_name)
+    return metrics_list
 
 
 def format_metric(metric):
@@ -167,19 +166,24 @@ def metric_publisher(event, context):
     )['events']
     if len(log_events) == 0:
         return 0
-    batch = batch_metrics(log_events)
-    metrics_to_put = [format_metric(metric) for metric in batch['metrics']]
-    need_to_call_again = False
-    if batch['time'] != 0:
-        next_timestamp = batch['time']
-        need_to_call_again = True
-    try:
-        CLOUDWATCH_CLIENT.put_metric_data(
-            Namespace=get_namespace(),
-            MetricData=metrics_to_put
-        )
-    except Exception:
-        next_timestamp = start_time
+    next_batch = batch_metrics(log_events)
+    metrics_to_put = [format_metric(metric) for metric in next_batch]
+    batches = [metrics_to_put[start:start+MAX_BATCH_SIZE]
+               for start in range(0, len(metrics_to_put), MAX_BATCH_SIZE)]
+    number_of_metrics = 0
+    for batch in batches:
+        try:
+            CLOUDWATCH_CLIENT.put_metric_data(
+                Namespace=get_namespace(),
+                MetricData=batch
+            )
+            number_of_metrics += len(batch)
+        except Exception:
+            CLOUDWATCH_CLIENT.put_metric_data(
+                Namespace=get_namespace(),
+                MetricData=batch
+            )
+            number_of_metrics += len(batch)
     DYNAMODB_CLIENT.put_item(
         TableName=get_table_name(),
         Item={
@@ -192,9 +196,7 @@ def metric_publisher(event, context):
         },
         ReturnConsumedCapacity='NONE',
     )
-    if need_to_call_again:
-        while metric_publisher(None, None) == 0:
-            pass
+    return number_of_metrics
 
 
 def _error_response(error):

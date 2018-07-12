@@ -11,7 +11,7 @@ CLOUDWATCH_CLIENT = boto3.client('cloudwatch')
 LOG_CLIENT = boto3.client('logs')
 
 
-def wait_until_events_put(start_time, timeout=20, period=0.5):
+def wait_until_events_put(start_time, timeout=60, period=0.5):
     """Helper function to account for latency
     in put_log_events API"""
     stop_time = time.time() + timeout
@@ -28,28 +28,15 @@ def wait_until_events_put(start_time, timeout=20, period=0.5):
 def wait_until_metrics_published(timeout=60, period=0.5):
     """Helper function to account for latency
     in put_metric_data API"""
+    number_of_metrics_expected = 34
     stop_time = time.time() + timeout
     while time.time() < stop_time:
-        if metricpublisher.lambda_handler.metric_publisher(None, None) != 0:
+        if metricpublisher.lambda_handler.metric_publisher(None, None) == 34:
             return True
         time.sleep(period)
     return False
 
-def check_if_many_events_published(results):
-    """Helper function to ensure that
-    all of the data from the last test
-    case has published."""
-    if len(results[8]['Values']) == 0:
-        return False
-    if len(results[9]['Values']) == 0:
-        return False
-    if results[8]['Values'][0] != 30:
-        return False
-    if results[9]['Values'][0] != 41:
-        return False
-    return True
-
-def wait_until_data_appears(queries, start_time, timeout=120, period=0.5):
+def wait_until_data_appears(queries, start_time, timeout=60, period=0.5):
     """Helper function to account for latency
     in get_metric_data API"""
     stop_time = time.time() + timeout
@@ -64,10 +51,11 @@ def wait_until_data_appears(queries, start_time, timeout=120, period=0.5):
             if len(query['Values']) == 0:
                 finished = False
                 break
-        if not check_if_many_events_published(response['MetricDataResults']):
-            finished = False
         if finished:
-            return response
+            values = [response['MetricDataResults'][i]['Values'][0] for i in range(10)]
+            expected_values = [50, 30, 60, 5, 217, 1, 555, 43.4, 30, 41]
+            if values == expected_values:
+                return True
         time.sleep(period)
 
 def test_overall_flow_mocking_env_vars(mocker):
@@ -91,13 +79,3 @@ def test_overall_flow_mocking_env_vars(mocker):
     response = wait_until_data_appears(sample_queries, start_time)
     if response == None:
         raise Exception("Timeout Error")
-    assert response['MetricDataResults'][0]['Values'][0] == 50
-    assert response['MetricDataResults'][1]['Values'][0] == 30
-    assert response['MetricDataResults'][2]['Values'][0] == 60
-    assert response['MetricDataResults'][3]['Values'][0] == 5
-    assert response['MetricDataResults'][4]['Values'][0] == 217
-    assert response['MetricDataResults'][5]['Values'][0] == 1
-    assert response['MetricDataResults'][6]['Values'][0] == 555
-    assert response['MetricDataResults'][7]['Values'][0] == 43.4
-    assert response['MetricDataResults'][8]['Values'][0] == 30
-    assert response['MetricDataResults'][9]['Values'][0] == 41

@@ -182,6 +182,7 @@ def test_metric_publisher_client_function_calls(mocker):
     table_name = 'metricPublisherAppDynamoDBTable'
     namespace = 'metricPublisherAppNamespace'
     current_time = int(time.time()*CONVERT_SECONDS_TO_MILLIS_FACTOR)
+    number_of_metrics_expected = 6
     item_key = {
         'cursor': {
             'S': 'cursor_for_next_batch'
@@ -200,7 +201,7 @@ def test_metric_publisher_client_function_calls(mocker):
     metricpublisher.lambda_handler.get_table_name.return_value = table_name
     metricpublisher.lambda_handler.get_namespace.return_value = namespace
     metricpublisher.lambda_handler.get_current_time.return_value = current_time
-    assert metricpublisher.lambda_handler.metric_publisher(None, None) == None
+    assert metricpublisher.lambda_handler.metric_publisher(None, None) == number_of_metrics_expected
     metricpublisher.lambda_handler.LOG_CLIENT.filter_log_events.assert_called_with(logGroupName=log_group_name,startTime=start_time,endTime=current_time)
     metricpublisher.lambda_handler.DYNAMODB_CLIENT.get_item.assert_called_with(Key=item_key,TableName=table_name)
     metricpublisher.lambda_handler.CLOUDWATCH_CLIENT.put_metric_data.assert_called_with(Namespace=namespace,MetricData=metrics_to_put_expected)

@@ -580,8 +580,7 @@ def log_events_normal():
 
 @pytest.fixture()
 def batch_metrics_normal_expected():
-    time = 0
-    metrics = [
+    return [
         {
             'metric_name': 'theMetricName2',
             'value': 17
@@ -607,7 +606,6 @@ def batch_metrics_normal_expected():
             'value': 22
         }
     ]
-    return {'metrics': metrics, 'time': time}
 
 @pytest.fixture()
 def many_log_events():
@@ -826,136 +824,158 @@ def many_log_events():
 
 @pytest.fixture()
 def batch_metrics_many_events():
-    return {
-        'metrics': [
-            {
-                'timestamp': 1530897511448,
-                'metric_name': 'theMetricName',
-                'value': 17
-            },
-            {
-                'timestamp': 1530897511866,
-                'metric_name': 'theMetricName',
-                'value': 18
-            },
-            {
-                'timestamp': 1530897512045,
-                'metric_name': 'theMetricName',
-                'value': 19
-            },
-            {
-                'timestamp': 1530897512224,
-                'metric_name': 'theMetricName',
-                'value': 20
-            },
-            {
-                'timestamp': 1530897512396,
-                'metric_name': 'theMetricName',
-                'value': 21
-            },
-            {
-                'timestamp': 1530897512576,
-                'metric_name': 'theMetricName',
-                'value': 22
-            },
-            {
-                'timestamp': 1530897512759,
-                'metric_name': 'theMetricName',
-                'value': 23
-            },
-            {
-                'timestamp': 1530897512945,
-                'metric_name': 'theMetricName',
-                'value': 24
-            },
-            {
-                'timestamp': 1530897513135,
-                'metric_name': 'theMetricName',
-                'value': 25
-            },
-            {
-                'timestamp': 1530897513390,
-                'metric_name': 'theMetricName',
-                'value': 26
-            },
-            {
-                'timestamp': 1530897513578,
-                'metric_name': 'theMetricName',
-                'value': 27
-            },
-            {
-                'timestamp': 1530897513760,
-                'metric_name': 'theMetricName',
-                'value': 28
-            },
-            {
-                'timestamp': 1530897513947,
-                'metric_name': 'theMetricName',
-                'value': 29
-            },
-            {
-                'timestamp': 1530897514140,
-                'metric_name': 'theMetricName',
-                'value': 30
-            },
-            {
-                'timestamp': 1530897514318,
-                'metric_name': 'theMetricName',
-                'value': 31
-            },
-            {
-                'timestamp': 1530897514532,
-                'metric_name': 'theMetricName',
-                'value': 32
-            },
-            {
-                'timestamp': 1530897514724,
-                'metric_name': 'theMetricName',
-                'value': 33
-            },
-            {
-                'timestamp': 1530897514907,
-                'metric_name': 'theMetricName',
-                'value': 34
-            },
-            {
-                'timestamp': 1530897515096,
-                'metric_name': 'theMetricName',
-                'value': 35
-            },
-            {
-                'timestamp': 1530897515275,
-                'metric_name': 'theMetricName',
-                'value': 36
-            },
-            {
-                'timestamp': 1530897515489,
-                'metric_name': 'theMetricName',
-                'value': 37
-            },
-            {
-                'timestamp': 1530897515674,
-                'metric_name': 'theMetricName',
-                'value': 38
-            },
-            {
-                'timestamp': 1530897515852,
-                'metric_name': 'theMetricName',
-                'value': 39
-            },
-            {
-                'timestamp': 1530897516032,
-                'metric_name': 'theMetricName',
-                'value': 40
-            },
-            {
-                'timestamp': 1530897516211,
-                'metric_name': 'theMetricName',
-                'value': 41
-            }
-        ],
-        'time': 1530897516485
-    }
+    return [
+        {
+            'timestamp': 1530897511448,
+            'metric_name': 'theMetricName',
+            'value': 17
+        },
+        {
+            'timestamp': 1530897511866,
+            'metric_name': 'theMetricName',
+            'value': 18
+        },
+        {
+            'timestamp': 1530897512045,
+            'metric_name': 'theMetricName',
+            'value': 19
+        },
+        {
+            'timestamp': 1530897512224,
+            'metric_name': 'theMetricName',
+            'value': 20
+        },
+        {
+            'timestamp': 1530897512396,
+            'metric_name': 'theMetricName',
+            'value': 21
+        },
+        {
+            'timestamp': 1530897512576,
+            'metric_name': 'theMetricName',
+            'value': 22
+        },
+        {
+            'timestamp': 1530897512759,
+            'metric_name': 'theMetricName',
+            'value': 23
+        },
+        {
+            'timestamp': 1530897512945,
+            'metric_name': 'theMetricName',
+            'value': 24
+        },
+        {
+            'timestamp': 1530897513135,
+            'metric_name': 'theMetricName',
+            'value': 25
+        },
+        {
+            'timestamp': 1530897513390,
+            'metric_name': 'theMetricName',
+            'value': 26
+        },
+        {
+            'timestamp': 1530897513578,
+            'metric_name': 'theMetricName',
+            'value': 27
+        },
+        {
+            'timestamp': 1530897513760,
+            'metric_name': 'theMetricName',
+            'value': 28
+        },
+        {
+            'timestamp': 1530897513947,
+            'metric_name': 'theMetricName',
+            'value': 29
+        },
+        {
+            'timestamp': 1530897514140,
+            'metric_name': 'theMetricName',
+            'value': 30
+        },
+        {
+            'timestamp': 1530897514318,
+            'metric_name': 'theMetricName',
+            'value': 31
+        },
+        {
+            'timestamp': 1530897514532,
+            'metric_name': 'theMetricName',
+            'value': 32
+        },
+        {
+            'timestamp': 1530897514724,
+            'metric_name': 'theMetricName',
+            'value': 33
+        },
+        {
+            'timestamp': 1530897514907,
+            'metric_name': 'theMetricName',
+            'value': 34
+        },
+        {
+            'timestamp': 1530897515096,
+            'metric_name': 'theMetricName',
+            'value': 35
+        },
+        {
+            'timestamp': 1530897515275,
+            'metric_name': 'theMetricName',
+            'value': 36
+        },
+        {
+            'timestamp': 1530897515489,
+            'metric_name': 'theMetricName',
+            'value': 37
+        },
+        {
+            'timestamp': 1530897515674,
+            'metric_name': 'theMetricName',
+            'value': 38
+        },
+        {
+            'timestamp': 1530897515852,
+            'metric_name': 'theMetricName',
+            'value': 39
+        },
+        {
+            'timestamp': 1530897516032,
+            'metric_name': 'theMetricName',
+            'value': 40
+        },
+        {
+            'timestamp': 1530897516211,
+            'metric_name': 'theMetricName',
+            'value': 41
+        },
+        {
+            'timestamp': 1530897516393,
+            'metric_name': 'theMetricName',
+            'value': 42
+        },
+        {
+            'timestamp': 1530897516574,
+            'metric_name': 'theMetricName',
+            'value': 43
+        },
+        {
+            'timestamp': 1530897516750,
+            'metric_name': 'theMetricName',
+            'value': 44
+        },
+        {
+            'timestamp': 1530897516935,
+            'metric_name': 'theMetricName',
+            'value': 45
+        },
+        {
+            'timestamp': 1530897517163,
+            'metric_name': 'theMetricName',
+            'value': 46
+        }
+    ]
 
 @pytest.fixture()
 def sample_log_events():
