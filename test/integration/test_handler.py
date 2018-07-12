@@ -31,7 +31,7 @@ def wait_until_metrics_published(timeout=60, period=0.5):
     number_of_metrics_expected = 34
     stop_time = time.time() + timeout
     while time.time() < stop_time:
-        if metricpublisher.lambda_handler.metric_publisher(None, None) == 34:
+        if metricpublisher.lambda_handler.metric_publisher(None, None) == number_of_metrics_expected:
             return True
         time.sleep(period)
     return False
