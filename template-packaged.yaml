@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: 2010-09-09
+Conditions:
+  IsBatchingFrequencyInMinutesSingular:
+    Fn::Equals:
+    - Ref: BatchingFrequencyInMinutes
+    - 1
+Description: <- This app accepts metric input in JSON format, and puts that input
+  to a log group. The metric_publisher lambda function is triggered by the cloudwatch
+  events rule on a regular schedule, batches all the metrics together using the cursor
+  from the Dynamo DB table, and publishes those metrics to cloudwatch.
+Parameters:
+  BatchingFrequencyInMinutes:
+    Default: 5
+    Description: <- The frequency (in minutes) that the events rule will trigger the
+      metric_publisher function.
+    MaxValue: 60
+    MinValue: 1
+    Type: Number
+  Namespace:
+    Description: <- The namespace to be used whenever the put metric data API is called.
+    Type: String
+Resources:
+  CheckpointTable:
+    Properties:
+      PrimaryKey:
+        Name: cursor
+        Type: String
+    Type: AWS::Serverless::SimpleTable
+  MetricLogger:
+    Properties:
+      CodeUri: s3://metric-publisher-bucket/5bd69c449d636496d9eb3429f4306c33
+      Description: <- This function accepts an event in JSON format, validates it
+        using JSON schema, and puts the event to a log group.
+      Environment:
+        Variables:
+          LOG_GROUP_NAME:
+            Ref: MetricsLogGroup
+      Handler: lambda_handler.log_event
+      Runtime: python3.6
+    Type: AWS::Serverless::Function
+  MetricPublisher:
+    Properties:
+      CodeUri: s3://metric-publisher-bucket/5bd69c449d636496d9eb3429f4306c33
+      Description: <- This function retrieves and updates the timestamp cursor from
+        the Dynamo DB table, retrieves the new metrics, and puts them to cloudwatch.
+      Environment:
+        Variables:
+          CHECKPOINT_TABLE_NAME:
+            Ref: CheckpointTable
+          LOG_GROUP_NAME:
+            Ref: MetricsLogGroup
+      Events:
+        Timer:
+          Properties:
+            Schedule:
+              Fn::If:
+              - IsBatchingFrequencyInMinutesSingular
+              - Fn::Sub: rate(${BatchingFrequencyInMinutes} minute)
+              - Fn::Sub: rate(${BatchingFrequencyInMinutes} minutes)
+          Type: Schedule
+      Handler: lambda_handler.metric_publisher
+      Runtime: python3.6
+    Type: AWS::Serverless::Function
+  MetricsLogGroup:
+    Properties:
+      RetentionInDays: 7
+    Type: AWS::Logs::LogGroup
+Transform: AWS::Serverless-2016-10-31

@@ -30,7 +30,7 @@ Conditions:
     IsBatchingFrequencyInMinutesSingular: !Equals [!Ref BatchingFrequencyInMinutes, 1]
 
 Resources:
-    metricLogger:
+    MetricLogger:
         Type: 'AWS::Serverless::Function'
         Properties:
             CodeUri: s3://metric-publisher-bucket/5bd69c449d636496d9eb3429f4306c33
@@ -42,27 +42,21 @@ Resources:
                 and puts the event to a log group.
             Environment:
                 Variables:
-                    LOG_GROUP_NAME: !Ref metricsLogGroup
-            Events:
-                LogsWrite:
-                    Type: CloudWatchLogs
-                    Properties:
-                        LogGroupName: !Ref metricsLogGroup
-                        FilterPattern: Error
+                    LOG_GROUP_NAME: !Ref MetricsLogGroup
 
-    checkpointTable:
+    CheckpointTable:
         Type: 'AWS::Serverless::SimpleTable'
         Properties:
             PrimaryKey:
                 Name: cursor
                 Type: String
 
-    metricsLogGroup:
+    MetricsLogGroup:
         Type: "AWS::Logs::LogGroup"
         Properties:
             RetentionInDays: 7
 
-    metricPublisher:
+    MetricPublisher:
         Type: 'AWS::Serverless::Function'
         Properties:
             Handler: lambda_handler.metric_publisher
@@ -75,15 +69,10 @@ Resources:
                 and puts them to cloudwatch.
             Environment:
                 Variables:
-                    LOG_GROUP_NAME: !Ref metricsLogGroup
-                    CHECKPOINT_TABLE_NAME: !Ref checkpointTable
+                    LOG_GROUP_NAME: !Ref MetricsLogGroup
+                    CHECKPOINT_TABLE_NAME: !Ref CheckpointTable
             Events:
                 Timer:
                     Type: Schedule
                     Properties:
                         Schedule: !If [IsBatchingFrequencyInMinutesSingular, !Sub 'rate(${BatchingFrequencyInMinutes} minute)', !Sub 'rate(${BatchingFrequencyInMinutes} minutes)']
-                LogsRead:
-                    Type: CloudWatchLogs
-                    Properties:
-                        LogGroupName: !Ref metricsLogGroup
-                        FilterPattern: Error
