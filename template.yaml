@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
-Description: <-
+Description:
     This app accepts metric input in JSON format,
     and puts that input to a log group. The
     metric_publisher lambda function is triggered
@@ -13,12 +13,12 @@ Description: <-
 Parameters:
     Namespace:
         Type: String
-        Description: <-
+        Description:
             The namespace to be used whenever
             the put metric data API is called.
     BatchingFrequencyInMinutes:
         Type: Number
-        Description: <-
+        Description:
             The frequency (in minutes) that
             the events rule will trigger the
             metric_publisher function.
@@ -36,7 +36,7 @@ Resources:
             CodeUri: s3://metric-publisher-bucket/5bd69c449d636496d9eb3429f4306c33
             Handler: lambda_handler.log_event
             Runtime: python3.6
-            Description: <-
+            Description:
                 This function accepts an event in JSON
                 format, validates it using JSON schema,
                 and puts the event to a log group.
@@ -62,7 +62,7 @@ Resources:
             Handler: lambda_handler.metric_publisher
             Runtime: python3.6
             CodeUri: s3://metric-publisher-bucket/5bd69c449d636496d9eb3429f4306c33
-            Description: <-
+            Description:
                 This function retrieves and updates
                 the timestamp cursor from the Dynamo
                 DB table, retrieves the new metrics,
