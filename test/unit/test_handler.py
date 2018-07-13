@@ -1,5 +1,4 @@
 import json
-import pytest
 import events
 from jsonschema import ValidationError
 from pytest_mock import mocker
@@ -146,17 +145,52 @@ def test_log_event_client_function_calls(mocker):
 
 def test_format_metric_simple_case():
     """Test that the format_metric function works for a basic metric."""
-    metric_before = events.simple_metric_before()
-    metric_expected = events.simple_metric_after_expected()
+    metric_before = events.simple_metric_log_event_format()
+    metric_expected = events.simple_metric_put_data_format()
     result = metricpublisher.lambda_handler.format_metric(metric_before)
     assert result == metric_expected
 
 def test_format_metric_complex_case():
     """Test that the format_metric function works for a more complicated metric."""
-    metric_before = events.complex_metric_before()
-    metric_expected = events.complex_metric_after_expected()
+    metric_before = events.complex_metric_log_event_format()
+    metric_expected = events.complex_metric_put_data_format()
     result = metricpublisher.lambda_handler.format_metric(metric_before)
     assert result == metric_expected
+
+def test_unformat_metric_simple_case():
+    """Test that the unformat_metric function works for a basic metric."""
+    metric_before = events.simple_metric_put_data_format()
+    metric_expected = events.simple_metric_log_event_format()
+    result = metricpublisher.lambda_handler.unformat_metric(metric_before)
+    assert result == metric_expected
+
+def test_unformat_metric_complex_case():
+    """Test that the unformat_metric function works for a more complicated metric."""
+    metric_before = events.complex_metric_put_data_format()
+    metric_expected = events.complex_metric_log_event_format()
+    result = metricpublisher.lambda_handler.unformat_metric(metric_before)
+    assert result == metric_expected
+
+def test_convert_batch_to_event(mocker):
+    batch = events.sample_batch()
+    expected_request_id_start = "log_events_retry_"
+    expected_data = events.unformated_metrics_expected()
+    batch_result = metricpublisher.lambda_handler.convert_batch_to_event(batch)
+    assert batch_result["request_id"].startswith(expected_request_id_start)
+    assert batch_result["metric_data"] == expected_data
+
+def test_batch_metrics_normal_case():
+    """Test that batch metrics works when there are less than 26 new metrics."""
+    sample_log_events = events.log_events_normal()
+    expected_response = events.batched_metrics_normal()
+    assert metricpublisher.lambda_handler.batch_metrics(sample_log_events) == expected_response
+
+def test_batch_metrics_too_many_metrics():
+    """Test that batch metrics returns less than 26 metrics
+    when there are more than 25 new metrics to publish."""
+    too_many_log_events = events.many_log_events()
+    expected_response = events.batch_metrics_many_events()
+    assert metricpublisher.lambda_handler.batch_metrics(too_many_log_events) == expected_response
 
 def test_metric_publisher_client_function_calls(mocker):
     """Test to ensure that metric_publisher functions
@@ -167,9 +201,10 @@ def test_metric_publisher_client_function_calls(mocker):
     batch_metrics_response = events.metrics_before()
     metrics_to_put_expected = events.metrics_to_put_expected()
     log_group_name = 'metricPublisherAppLogGroup'
-    table_name = 'MetricPublisherAppDynamoDBTable'
+    table_name = 'metricPublisherAppDynamoDBTable'
     namespace = 'metricPublisherAppNamespace'
     current_time = int(time.time()*CONVERT_SECONDS_TO_MILLIS_FACTOR)
+    number_of_metrics_expected = 6
     item_key = {
         'cursor': {
             'S': 'cursor_for_next_batch'
@@ -188,7 +223,7 @@ def test_metric_publisher_client_function_calls(mocker):
     metricpublisher.lambda_handler.get_table_name.return_value = table_name
     metricpublisher.lambda_handler.get_namespace.return_value = namespace
     metricpublisher.lambda_handler.get_current_time.return_value = current_time
-    assert metricpublisher.lambda_handler.metric_publisher(None, None) == None
+    assert metricpublisher.lambda_handler.metric_publisher(None, None) == number_of_metrics_expected
     metricpublisher.lambda_handler.LOG_CLIENT.filter_log_events.assert_called_with(logGroupName=log_group_name,startTime=start_time,endTime=current_time)
     metricpublisher.lambda_handler.DYNAMODB_CLIENT.get_item.assert_called_with(Key=item_key,TableName=table_name)
     metricpublisher.lambda_handler.CLOUDWATCH_CLIENT.put_metric_data.assert_called_with(Namespace=namespace,MetricData=metrics_to_put_expected)

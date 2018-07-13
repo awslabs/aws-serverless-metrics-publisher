@@ -6,12 +6,15 @@ import boto3
 import config
 import time
 import ast
+import uuid
+
 
 LOG_CLIENT = boto3.client('logs')
 DYNAMODB_CLIENT = boto3.client('dynamodb')
 CLOUDWATCH_CLIENT = boto3.client('cloudwatch')
 CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
 CURSOR_KEY = 'cursor_for_next_batch'
+MAX_BATCH_SIZE = 25
 
 
 def get_log_group_name():
@@ -82,10 +85,14 @@ def batch_metrics(log_events):
 
     """
     metrics_list = []
+    log_streams_set = set()
     for event in log_events:
-        event_message = ast.literal_eval(event['message'])
-        for metric in event_message['metric_data']:
-            metrics_list.append(metric)
+        log_stream_name = event['logStreamName']
+        if log_stream_name not in log_streams_set:
+            event_message = ast.literal_eval(event['message'])
+            for metric in event_message['metric_data']:
+                metrics_list.append(metric)
+        log_streams_set.add(log_stream_name)
     return metrics_list
 
 
@@ -129,6 +136,64 @@ def format_metric(metric):
     return metric
 
 
+def unformat_metric(metric):
+    """Unformat a single metric.
+
+    Parameters:
+        metric (dict): The metric to unformat
+
+    Returns:
+        metric (dict): The new metric in
+        the format needed for the log_event
+        API.
+
+    """
+    metric_keys = metric.keys()
+    metric["metric_name"] = metric.pop("MetricName")
+    if "Dimensions" in metric_keys:
+        for dimension in metric["Dimensions"]:
+            dimension["name"] = dimension.pop("Name")
+            dimension["value"] = dimension.pop("Value")
+        metric["dimensions"] = metric.pop("Dimensions")
+    if "Timestamp" in metric_keys:
+        metric["timestamp"] = metric.pop("Timestamp")
+    if "Value" in metric_keys:
+        metric["value"] = metric.pop("Value")
+    else:
+        metric["StatisticValues"]["sample_count"] =\
+            metric["StatisticValues"].pop("SampleCount")
+        metric["StatisticValues"]["sum"] =\
+            metric["StatisticValues"].pop("Sum")
+        metric["StatisticValues"]["minimum"] =\
+            metric["StatisticValues"].pop("Minimum")
+        metric["StatisticValues"]["maximum"] =\
+            metric["StatisticValues"].pop("Maximum")
+        metric["statistic_values"] = metric.pop("StatisticValues")
+    if "Unit" in metric_keys:
+        metric["unit"] = metric.pop("Unit")
+    if "StorageResolution" in metric_keys:
+        metric["storage_resolution"] = metric.pop("StorageResolution")
+    return metric
+
+
+def convert_batch_to_event(batch):
+    """Convert a batch of metrics into a log event.
+
+    Parameters:
+        batch (list): The batch of metrics to convert
+
+    Returns:
+        event (dict): The event ready to be put
+        to a new log stream
+
+    """
+    request_id = '_'.join(("log_events_retry", str(uuid.uuid4())))
+    return {
+        "request_id": request_id,
+        "metric_data": [unformat_metric(metric) for metric in batch]
+    }
+
+
 def metric_publisher(event, context):
     """Publish metrics to cloudwatch.
 
@@ -136,7 +201,8 @@ def metric_publisher(event, context):
         None
 
     Returns:
-        None
+        number_of_metrics (int): number of new
+        metrics that were published successfully
 
     """
     item_data = DYNAMODB_CLIENT.get_item(
@@ -157,15 +223,22 @@ def metric_publisher(event, context):
         startTime=start_time,
         endTime=next_timestamp
     )['events']
-    metrics_to_put = [format_metric(metric)
-                      for metric in batch_metrics(log_events)]
-    try:
-        CLOUDWATCH_CLIENT.put_metric_data(
-            Namespace=get_namespace(),
-            MetricData=metrics_to_put
-        )
-    except Exception:
-        next_timestamp = start_time
+    if len(log_events) == 0:
+        return 0
+    next_batch = batch_metrics(log_events)
+    metrics_to_put = [format_metric(metric) for metric in next_batch]
+    batches = [metrics_to_put[start:start+MAX_BATCH_SIZE]
+               for start in range(0, len(metrics_to_put), MAX_BATCH_SIZE)]
+    number_of_metrics = 0
+    for batch in batches:
+        try:
+            CLOUDWATCH_CLIENT.put_metric_data(
+                Namespace=get_namespace(),
+                MetricData=batch
+            )
+            number_of_metrics += len(batch)
+        except Exception:
+            log_event(convert_batch_to_event(batch), None)
     DYNAMODB_CLIENT.put_item(
         TableName=get_table_name(),
         Item={
@@ -178,6 +251,7 @@ def metric_publisher(event, context):
         },
         ReturnConsumedCapacity='NONE',
     )
+    return number_of_metrics
 
 
 def _error_response(error):
