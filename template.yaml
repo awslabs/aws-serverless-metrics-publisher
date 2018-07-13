@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Transform: ‘AWS::Serverless-2016-10-31’
+Transform: AWS::Serverless-2016-10-31
 Description: <-
     This app accepts metric input in JSON format,
     and puts that input to a log group. The
@@ -11,12 +11,12 @@ Description: <-
 
 
 Parameters:
-    namespace:
+    Namespace:
         Type: String
         Description: <-
             The namespace to be used whenever
             the put metric data API is called.
-    batchingfrequency:
+    BatchingFrequencyInMinutes:
         Type: Number
         Description: <-
             The frequency (in minutes) that
@@ -26,66 +26,48 @@ Parameters:
         MinValue: 1
         MaxValue: 60
 
+Conditions:
+    IsBatchingFrequencyInMinutesSingular: !Equals [!Ref BatchingFrequencyInMinutes, 1]
+
 Resources:
-    metric_logger:
+    metricLogger:
         Type: 'AWS::Serverless::Function'
         Properties:
-            CodeUri: metricpublisher/
+            CodeUri: s3://metric-publisher-bucket/5bd69c449d636496d9eb3429f4306c33
             Handler: lambda_handler.log_event
-            Runtime: Python 3.6
+            Runtime: python3.6
             Description: <-
                 This function accepts an event in JSON
                 format, validates it using JSON schema,
                 and puts the event to a log group.
             Environment:
                 Variables:
-                    LOG_GROUP_NAME: !Ref metrics_log_group
-            Role:
-                AWSLambdaBasicExecutionRole
+                    LOG_GROUP_NAME: !Ref metricsLogGroup
+            Events:
+                LogsWrite:
+                    Type: CloudWatchLogs
+                    Properties:
+                        LogGroupName: !Ref metricsLogGroup
+                        FilterPattern: Error
 
-    checkpoint_table:
+    checkpointTable:
         Type: 'AWS::Serverless::SimpleTable'
         Properties:
             PrimaryKey:
                 Name: cursor
                 Type: String
 
-    metrics_log_group:
-        Type: 'AWS::Logs:LogGroup'
+    metricsLogGroup:
+        Type: "AWS::Logs::LogGroup"
         Properties:
             RetentionInDays: 7
 
-    events_rule:
-        Type: 'AWS::Events::Rule'
-        Properties:
-            Description: <-
-                Events rule that triggers the
-                metric_publisher lambda function
-                using the frequency parameter.
-                Default value is once every 30 minutes.
-            ScheduledExpression: 'rate(!Ref batching_frequency minutes)'
-            Environment:
-                Variables:
-                    LAMBDA_FUNCTION_NAME: !Ref metric_publisher
-
-    permission_for_rule_to_invoke_lambda:
-        Type: 'AWS::Lambda::Permission'
-        Properties:
-            FunctionName:
-                Ref: 'metric_publisher'
-                Action: 'lambda:InvokeFunction'
-                Principal: 'events.amazonaws.com'
-                SourceArn:
-                    Fn::GetAtt:
-                        - 'events_rule'
-                        - 'Arn'
-
-    metric_publisher:
+    metricPublisher:
         Type: 'AWS::Serverless::Function'
         Properties:
             Handler: lambda_handler.metric_publisher
-            Runtime: Python 3.6
-            CodeUri: metricpublisher/
+            Runtime: python3.6
+            CodeUri: s3://metric-publisher-bucket/5bd69c449d636496d9eb3429f4306c33
             Description: <-
                 This function retrieves and updates
                 the timestamp cursor from the Dynamo
@@ -93,7 +75,15 @@ Resources:
                 and puts them to cloudwatch.
             Environment:
                 Variables:
-                    LOG_GROUP_NAME: !Ref metrics_log_group
-                    CHECKPOINT_TABLE_NAME: !Ref checkpoint_table
-            Role:
-                AWSLambdaDynamoDBExecutionRole
+                    LOG_GROUP_NAME: !Ref metricsLogGroup
+                    CHECKPOINT_TABLE_NAME: !Ref checkpointTable
+            Events:
+                Timer:
+                    Type: Schedule
+                    Properties:
+                        Schedule: !If [IsBatchingFrequencyInMinutesSingular, !Sub 'rate(${BatchingFrequencyInMinutes} minute)', !Sub 'rate(${BatchingFrequencyInMinutes} minutes)']
+                LogsRead:
+                    Type: CloudWatchLogs
+                    Properties:
+                        LogGroupName: !Ref metricsLogGroup
+                        FilterPattern: Error
