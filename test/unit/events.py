@@ -468,21 +468,21 @@ def empty_metric_name():
     }
 
 @pytest.fixture()
-def simple_metric_before():
+def simple_metric_log_event_format():
     return {
         "metric_name": "theMetricName",
         "value": 123,
     }
 
 @pytest.fixture()
-def simple_metric_after_expected():
+def simple_metric_put_data_format():
     return {
         "MetricName":"theMetricName",
         "Value": 123,
     }
 
 @pytest.fixture()
-def complex_metric_before():
+def complex_metric_log_event_format():
     return {
         "metric_name": "theMetricname",
         "dimensions": [
@@ -507,7 +507,7 @@ def complex_metric_before():
     }
 
 @pytest.fixture()
-def complex_metric_after_expected():
+def complex_metric_put_data_format():
     return {
         "MetricName": "theMetricname",
         "Dimensions": [
@@ -530,6 +530,64 @@ def complex_metric_after_expected():
         "Unit": "Seconds",
         "StorageResolution": 12
     }
+
+@pytest.fixture()
+def sample_batch():
+    return [
+        {
+            'MetricName': 'theMetricName',
+            'Value': 17
+        },
+        {
+            'MetricName': 'theMetricName',
+            'Value': 18
+        },
+        {
+            'MetricName': 'theMetricName',
+            'Value': 19
+        },
+        {
+            'MetricName': 'theMetricName',
+            'Value': 20
+        },
+        {
+            'MetricName': 'theMetricName',
+            'Value': 21
+        },
+        {
+            'MetricName': 'theMetricName',
+            'Value': 22
+        }
+    ]
+
+@pytest.fixture()
+def unformated_metrics_expected():
+    return [
+        {
+            'metric_name': 'theMetricName',
+            'value': 17
+        },
+        {
+            'metric_name': 'theMetricName',
+            'value': 18
+        },
+        {
+            'metric_name': 'theMetricName',
+            'value': 19
+        },
+        {
+            'metric_name': 'theMetricName',
+            'value': 20
+        },
+        {
+            'metric_name': 'theMetricName',
+            'value': 21
+        },
+        {
+            'metric_name': 'theMetricName',
+            'value': 22
+        }
+    ]
 
 @pytest.fixture()
 def log_events_normal():
@@ -579,7 +637,7 @@ def log_events_normal():
     ]
 
 @pytest.fixture()
-def batch_metrics_normal_expected():
+def batched_metrics_normal():
     return [
         {
             'metric_name': 'theMetricName2',

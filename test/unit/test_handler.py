@@ -145,22 +145,44 @@ def test_log_event_client_function_calls(mocker):
 
 def test_format_metric_simple_case():
     """Test that the format_metric function works for a basic metric."""
-    metric_before = events.simple_metric_before()
-    metric_expected = events.simple_metric_after_expected()
+    metric_before = events.simple_metric_log_event_format()
+    metric_expected = events.simple_metric_put_data_format()
     result = metricpublisher.lambda_handler.format_metric(metric_before)
     assert result == metric_expected
 
 def test_format_metric_complex_case():
     """Test that the format_metric function works for a more complicated metric."""
-    metric_before = events.complex_metric_before()
-    metric_expected = events.complex_metric_after_expected()
+    metric_before = events.complex_metric_log_event_format()
+    metric_expected = events.complex_metric_put_data_format()
     result = metricpublisher.lambda_handler.format_metric(metric_before)
     assert result == metric_expected
+
+def test_unformat_metric_simple_case():
+    """Test that the unformat_metric function works for a basic metric."""
+    metric_before = events.simple_metric_put_data_format()
+    metric_expected = events.simple_metric_log_event_format()
+    result = metricpublisher.lambda_handler.unformat_metric(metric_before)
+    assert result == metric_expected
+
+def test_unformat_metric_complex_case():
+    """Test that the unformat_metric function works for a more complicated metric."""
+    metric_before = events.complex_metric_put_data_format()
+    metric_expected = events.complex_metric_log_event_format()
+    result = metricpublisher.lambda_handler.unformat_metric(metric_before)
+    assert result == metric_expected
+
+def test_convert_batch_to_event(mocker):
+    batch = events.sample_batch()
+    expected_request_id_start = "log_events_retry_"
+    expected_data = events.unformated_metrics_expected()
+    batch_result = metricpublisher.lambda_handler.convert_batch_to_event(batch)
+    assert batch_result["request_id"].startswith(expected_request_id_start)
+    assert batch_result["metric_data"] == expected_data
 
 def test_batch_metrics_normal_case():
     """Test that batch metrics works when there are less than 26 new metrics."""
     sample_log_events = events.log_events_normal()
-    expected_response = events.batch_metrics_normal_expected()
+    expected_response = events.batched_metrics_normal()
     assert metricpublisher.lambda_handler.batch_metrics(sample_log_events) == expected_response
 
 def test_batch_metrics_too_many_metrics():
