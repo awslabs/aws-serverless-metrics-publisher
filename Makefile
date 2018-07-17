@@ -34,8 +34,7 @@ test: compile
 	python -m pytest test/ -v
 build: test
 
-package:
-	build
+package: build
 	rm -r dist/
 	mkdir -p $(BUILD_DIR)
 	cp -r template.yaml metricpublisher $(BUILD_DIR)
