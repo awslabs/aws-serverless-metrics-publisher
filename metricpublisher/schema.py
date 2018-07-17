@@ -1,22 +1,22 @@
 """Helpers for schema validation."""
 
+import config
 import os.path as path
-
 import jsonref
-import jsonschema
+from jsonschema import validate
 
 SCHEMA_CACHE = {}
 
 
 def validate_log_event_request(request):
     """Validate log_event request."""
-    return _validate(request, "log_event.json")
+    return _validate(request, config.LOG_EVENT_SCHEMA_NAME)
 
 
 def _validate(data, schema_filename):
     """Validate data against given JSON schema file."""
     schema = _load_json_schema(schema_filename)
-    return jsonschema.validate(data, schema)
+    return validate(data, schema)
 
 
 def _load_json_schema(filename):

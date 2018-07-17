@@ -33,8 +33,8 @@ Resources:
     MetricLogger:
         Type: 'AWS::Serverless::Function'
         Properties:
-            CodeUri: s3://metric-publisher-bucket/5bd69c449d636496d9eb3429f4306c33
-            Handler: lambda_handler.log_event
+            CodeUri: metricpublisher/
+            Handler: logger_handler.log_event
             Runtime: python3.6
             Description:
                 This function accepts an event in JSON
@@ -43,6 +43,7 @@ Resources:
             Environment:
                 Variables:
                     LOG_GROUP_NAME: !Ref MetricsLogGroup
+                    NAMESPACE_PARAM: !Ref Namespace
 
     CheckpointTable:
         Type: 'AWS::Serverless::SimpleTable'
@@ -59,9 +60,9 @@ Resources:
     MetricPublisher:
         Type: 'AWS::Serverless::Function'
         Properties:
-            Handler: lambda_handler.metric_publisher
+            CodeUri: metricpublisher/
+            Handler: publisher_handler.metric_publisher
             Runtime: python3.6
-            CodeUri: s3://metric-publisher-bucket/5bd69c449d636496d9eb3429f4306c33
             Description:
                 This function retrieves and updates
                 the timestamp cursor from the Dynamo
@@ -71,8 +72,18 @@ Resources:
                 Variables:
                     LOG_GROUP_NAME: !Ref MetricsLogGroup
                     CHECKPOINT_TABLE_NAME: !Ref CheckpointTable
+                    NAMESPACE_PARAM: !Ref Namespace
             Events:
                 Timer:
                     Type: Schedule
                     Properties:
                         Schedule: !If [IsBatchingFrequencyInMinutesSingular, !Sub 'rate(${BatchingFrequencyInMinutes} minute)', !Sub 'rate(${BatchingFrequencyInMinutes} minutes)']
+            Policies:
+                - DynamoDBCrudPolicy:
+                    TableName: !Ref CheckpointTable
+                - CloudWatchPutMetricPolicy: {}
+                - Statement:
+                    - Action:
+                        - logs:FilterLogEvents
+                      Resource: "*"
+                      Effect: Allow
