@@ -1,6 +1,5 @@
 SHELL := /bin/sh
 PY_VERSION := 3.6
-
 export PYTHONUNBUFFERED := 1
 
 BUILD_DIR := dist
@@ -10,6 +9,7 @@ PACKAGE_BUCKET ?= <bucket>
 
 # user can optionally override these with env vars
 STACK_NAME ?= metricpublisher-stack
+NAMESPACE ?= namespace
 AWS_DEFAULT_REGION ?= us-east-1
 
 PYTHON := $(shell /usr/bin/which python$(PY_VERSION))
@@ -34,14 +34,15 @@ test: compile
 build: test
 
 package: build
+	rm -r dist/
 	mkdir -p $(BUILD_DIR)
 	cp -r template.yaml metricpublisher $(BUILD_DIR)
 
 	# package dependencies in lib dir
 	pipenv lock --requirements > $(BUILD_DIR)/requirements.txt
-	pipenv run pip install -t $(BUILD_DIR)/app/lib -r $(BUILD_DIR)/requirements.txt
+	pipenv run pip install -t $(BUILD_DIR)/metricpublisher/lib -r $(BUILD_DIR)/requirements.txt
 
-	sam package --template-file $(BUILD_DIR)/template.yaml --s3-bucket $(PACKAGE_BUCKET) --output-template-file $(BUILD_DIR)/packaged-template.yaml
+	aws cloudformation package --template-file $(BUILD_DIR)/template.yaml --s3-bucket $(PACKAGE_BUCKET) --output-template-file $(BUILD_DIR)/packaged-template.yaml
 
 deploy:
-	sam deploy --template-file $(BUILD_DIR)/packaged-template.yaml --stack-name $(STACK_NAME) --capabilities CAPABILITY_IAM
+	aws cloudformation deploy --template-file $(BUILD_DIR)/packaged-template.yaml --stack-name $(STACK_NAME) --capabilities CAPABILITY_IAM --parameter-overrides Namespace=$(NAMESPACE)

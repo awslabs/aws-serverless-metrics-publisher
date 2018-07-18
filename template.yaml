@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description:
+    This app accepts metric input in JSON format,
+    and puts that input to a log group. The
+    metric_publisher lambda function is triggered
+    by the cloudwatch events rule on a regular
+    schedule, batches all the metrics together
+    using the cursor from the Dynamo DB table,
+    and publishes those metrics to cloudwatch.
+
+
+Parameters:
+    Namespace:
+        Type: String
+        Description:
+            The namespace to be used whenever
+            the put metric data API is called.
+    BatchingFrequencyInMinutes:
+        Type: Number
+        Description:
+            The frequency (in minutes) that
+            the events rule will trigger the
+            metric_publisher function.
+        Default: 5
+        MinValue: 1
+        MaxValue: 60
+
+Conditions:
+    IsBatchingFrequencyInMinutesSingular: !Equals [!Ref BatchingFrequencyInMinutes, 1]
+
+Resources:
+    MetricLogger:
+        Type: 'AWS::Serverless::Function'
+        Properties:
+            CodeUri: metricpublisher/
+            Handler: logger_handler.log_event
+            Runtime: python3.6
+            Description:
+                This function accepts an event in JSON
+                format, validates it using JSON schema,
+                and puts the event to a log group.
+            Environment:
+                Variables:
+                    LOG_GROUP_NAME: !Ref MetricsLogGroup
+                    NAMESPACE_PARAM: !Ref Namespace
+
+    CheckpointTable:
+        Type: 'AWS::Serverless::SimpleTable'
+        Properties:
+            PrimaryKey:
+                Name: cursor
+                Type: String
+
+    MetricsLogGroup:
+        Type: "AWS::Logs::LogGroup"
+        Properties:
+            RetentionInDays: 7
+
+    MetricPublisher:
+        Type: 'AWS::Serverless::Function'
+        Properties:
+            CodeUri: metricpublisher/
+            Handler: publisher_handler.metric_publisher
+            Runtime: python3.6
+            Description:
+                This function retrieves and updates
+                the timestamp cursor from the Dynamo
+                DB table, retrieves the new metrics,
+                and puts them to cloudwatch.
+            Environment:
+                Variables:
+                    LOG_GROUP_NAME: !Ref MetricsLogGroup
+                    CHECKPOINT_TABLE_NAME: !Ref CheckpointTable
+                    NAMESPACE_PARAM: !Ref Namespace
+            Events:
+                Timer:
+                    Type: Schedule
+                    Properties:
+                        Schedule: !If [IsBatchingFrequencyInMinutesSingular, !Sub 'rate(${BatchingFrequencyInMinutes} minute)', !Sub 'rate(${BatchingFrequencyInMinutes} minutes)']
+            Policies:
+                - DynamoDBCrudPolicy:
+                    TableName: !Ref CheckpointTable
+                - CloudWatchPutMetricPolicy: {}
+                - Statement:
+                    - Action:
+                        - logs:FilterLogEvents
+                      Resource: "*"
+                      Effect: Allow

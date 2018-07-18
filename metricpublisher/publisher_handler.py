@@ -1,7 +1,6 @@
-"""Lambda function entrypoint handlers."""
+"""Metric Publisher lambda function entrypoint and helper functions."""
 
-from jsonschema import ValidationError
-import schema
+import logger_handler
 import boto3
 import config
 import time
@@ -35,40 +34,6 @@ def get_namespace():
 def get_current_time():
     """Get the current time."""
     return int(time.time()*CONVERT_SECONDS_TO_MILLIS_FACTOR)
-
-
-def log_event(event, context):
-    """Log event.
-
-    Parameters:
-        event (dict): The metric data that
-        the user would like to put to cloudwatch.
-
-    Returns:
-        None
-
-    """
-    try:
-        schema.validate_log_event_request(event)
-    except ValidationError as err:
-        return _error_response(err)
-    request_id = event["request_id"]
-    event = str(event)
-    new_log_stream_name = '_'.join((get_namespace(), request_id))
-    LOG_CLIENT.create_log_stream(
-        logGroupName=get_log_group_name(),
-        logStreamName=new_log_stream_name
-    )
-    LOG_CLIENT.put_log_events(
-        logGroupName=get_log_group_name(),
-        logStreamName=new_log_stream_name,
-        logEvents=[
-            {
-                'timestamp': get_current_time(),
-                'message': event
-            },
-        ],
-    )
 
 
 def batch_metrics(log_events):
@@ -238,7 +203,7 @@ def metric_publisher(event, context):
             )
             number_of_metrics += len(batch)
         except Exception:
-            log_event(convert_batch_to_event(batch), None)
+            logger_handler.log_event(convert_batch_to_event(batch), None)
     DYNAMODB_CLIENT.put_item(
         TableName=get_table_name(),
         Item={
