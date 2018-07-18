@@ -1,6 +1,5 @@
 SHELL := /bin/sh
 PY_VERSION := 3.6
-AWS := /Users/jcbasden/.local/lib/aws/bin/aws
 export PYTHONUNBUFFERED := 1
 
 BUILD_DIR := dist
@@ -43,7 +42,7 @@ package: build
 	pipenv lock --requirements > $(BUILD_DIR)/requirements.txt
 	pipenv run pip install -t $(BUILD_DIR)/metricpublisher/lib -r $(BUILD_DIR)/requirements.txt
 
-	$(AWS) cloudformation package --template-file $(BUILD_DIR)/template.yaml --s3-bucket $(PACKAGE_BUCKET) --output-template-file $(BUILD_DIR)/packaged-template.yaml
+	aws cloudformation package --template-file $(BUILD_DIR)/template.yaml --s3-bucket $(PACKAGE_BUCKET) --output-template-file $(BUILD_DIR)/packaged-template.yaml
 
 deploy:
-	$(AWS) cloudformation deploy --template-file $(BUILD_DIR)/packaged-template.yaml --stack-name $(STACK_NAME) --capabilities CAPABILITY_IAM --parameter-overrides Namespace=$(NAMESPACE)
+	aws cloudformation deploy --template-file $(BUILD_DIR)/packaged-template.yaml --stack-name $(STACK_NAME) --capabilities CAPABILITY_IAM --parameter-overrides Namespace=$(NAMESPACE)
