@@ -1,19 +1,19 @@
-#AWS Serverless Metrics Publisher
+# AWS Serverless Metrics Publisher
 
-###A metric publisher to batch and publish metrics to CloudWatch.
+### A metric publisher to batch and publish metrics to CloudWatch.
 
 ![Logo](MetricPublisherAppDiagram.png)
 
-##A Brief Explanation
+## A Brief Explanation
 
 The Metric Publisher Application accepts metrics as input in JSON format,
 logs those metrics, and periodically gathers all new data from the Log Group,
 batches the new metrics together, and publishes them to CloudWatch. For more
 details, see "How to Deploy and Use" below.
 
-##How to deploy and Use
+## How to deploy and Use
 
-###Initial Deployment
+### Initial Deployment
 
 To deploy the application, first fill in the sections under "Configure
 application parameters." The Application name can be left as it is:
@@ -73,7 +73,7 @@ Click "Create policy".
 Your lambda function should now have the necessary permission to access the
 Metrics Log Group resource in your app.
 
-###How to use the app
+### How to use the app
 
 The main entry point for the app is the Metric Logger Lambda function.
 This function can be invoked through the AWS CLI, or through the AWS
