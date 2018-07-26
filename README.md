@@ -2,7 +2,7 @@
 
 ### A metric publisher to batch and publish metrics to CloudWatch.
 
-![Logo](MetricPublisherAppDiagram.png)
+![Logo](Diagrams/MetricPublisherAppDiagram.png)
 
 ## A Brief Explanation
 
@@ -80,6 +80,7 @@ This function can be invoked through the AWS CLI, or through the AWS
 Lambda console. The input is metrics in JSON format, with the following
 fields:
 
+'''json
 {
     "request_id": "string",
     "metric_data": [
@@ -104,6 +105,7 @@ fields:
         },
     ]
 }
+'''
 
 Wait the number of minutes specified in the "BatchingFrequencyInMinutes" parameter,
 or invoke the Metric Publisher Lambda Function manually. There is no input.
