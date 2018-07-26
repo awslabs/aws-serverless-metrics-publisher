@@ -49,16 +49,7 @@ Click "Create Policy" just above the search bar. Click the "JSON" tab,
 and copy and paste the following in the text box, replacing what may already
 be there:
 
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": "logs:FilterLogEvents",
-            "Resource": "<REPLACE WITH METRICS LOG GROUP ARN>"
-        }
-    ]
-}
+![Logo](Diagrams/PolicyTemplateJSON.png)
 
 The Metrics Log Group Arn can be found in the CloudFormation console in the
 outputs section, under "Value".
@@ -80,32 +71,7 @@ This function can be invoked through the AWS CLI, or through the AWS
 Lambda console. The input is metrics in JSON format, with the following
 fields:
 
-'''json
-{
-    "request_id": "string",
-    "metric_data": [
-        {
-            "metric_name": "string",
-            "dimensions": [
-                {
-                    "name": "string",
-                    "value": "string"
-                },
-            ],
-            "timestamp": int (milliseconds since epoch),
-            "value": float,
-            "statistic_values": {
-                "sample_count": float,
-                "sum": float,
-                "minimum": float,
-                "maximum": float
-            },
-            "unit": "string", Allowed Values: See values for 'Unit' here: http://boto3.readthedocs.io/en/latest/reference/services/cloudwatch.html#CloudWatch.Client.put_metric_data
-            "storage_resolution": int
-        },
-    ]
-}
-'''
+![Logo](Diagrams/InputJSON.png)
 
 Wait the number of minutes specified in the "BatchingFrequencyInMinutes" parameter,
 or invoke the Metric Publisher Lambda Function manually. There is no input.
