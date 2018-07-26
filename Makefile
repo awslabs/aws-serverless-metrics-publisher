@@ -34,7 +34,7 @@ test: compile
 build: test
 
 package: build
-	rm -r dist/
+	rm -r $(BUILD_DIR)/
 	mkdir -p $(BUILD_DIR)
 	cp -r template.yaml metricpublisher $(BUILD_DIR)
 

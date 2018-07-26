@@ -16,11 +16,12 @@ Parameters:
         Description:
             The namespace to be used whenever
             the put metric data API is called.
+        Default: MetricPublisherDefaultNamespace
     BatchingFrequencyInMinutes:
         Type: Number
         Description:
-            The frequency (in minutes) that
-            the events rule will trigger the
+            The frequency that the events
+            rule will trigger the
             metric_publisher function.
         Default: 5
         MinValue: 1
@@ -33,7 +34,7 @@ Resources:
     MetricLogger:
         Type: 'AWS::Serverless::Function'
         Properties:
-            CodeUri: metricpublisher/
+            CodeUri: s3://metric-publisher-bucket/e2a764f239eacd2cca1cfe4a94338b01
             Handler: logger_handler.log_event
             Runtime: python3.6
             Description:
@@ -60,7 +61,7 @@ Resources:
     MetricPublisher:
         Type: 'AWS::Serverless::Function'
         Properties:
-            CodeUri: metricpublisher/
+            CodeUri: s3://metric-publisher-bucket/e2a764f239eacd2cca1cfe4a94338b01
             Handler: publisher_handler.metric_publisher
             Runtime: python3.6
             Description:
@@ -73,6 +74,7 @@ Resources:
                     LOG_GROUP_NAME: !Ref MetricsLogGroup
                     CHECKPOINT_TABLE_NAME: !Ref CheckpointTable
                     NAMESPACE_PARAM: !Ref Namespace
+            Timeout: 60
             Events:
                 Timer:
                     Type: Schedule
@@ -82,8 +84,7 @@ Resources:
                 - DynamoDBCrudPolicy:
                     TableName: !Ref CheckpointTable
                 - CloudWatchPutMetricPolicy: {}
-                - Statement:
-                    - Action:
-                        - logs:FilterLogEvents
-                      Resource: "*"
-                      Effect: Allow
+
+Outputs:
+    MetricsLogGroupArn:
+        Value: !GetAtt MetricsLogGroup.Arn
