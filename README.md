@@ -29,8 +29,8 @@ Once the app has successfully deployed, click on "View CloudFormation stack" in
 the upper right hand corner.
 
 Under "Resources", click on the link under "Physical ID" corresponding to
-the "MetricPublisherRole" resource. Click the blue button labeled
-"Attach policies".
+the "MetricPublisherRole" resource, to redirect yourself to the IAM console.
+Click the blue button labeled "Attach policies".
 
 Due to current incompatibility with the Serverless Application Model (SAM), the
 permission to filter log events from a log group is currently not available upon
@@ -50,6 +50,18 @@ and copy and paste the following in the text box, replacing what may already
 be there:
 
 ![Logo](Diagrams/PolicyTemplateJSON.png)
+
+(Raw text included here for easy copy/paste)
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "logs:FilterLogEvents",
+            "Resource": "REPLACE WITH METRICS LOG GROUP ARN"
+        }
+    ]
+}
 
 The Metrics Log Group Arn can be found in the CloudFormation console in the
 outputs section, under "Value".
@@ -72,6 +84,33 @@ Lambda console. The input is metrics in JSON format, with the following
 fields:
 
 ![Logo](Diagrams/InputJSON.png)
+
+(Raw text included here for easy copy/paste)
+
+{
+    "request_id": "string",
+    "metric_data": [
+        {
+            "metric_name": "string",
+            "dimensions": [
+                {
+                    "name": "string",
+                    "value": "string"
+                },
+            ],
+            "timestamp": int,
+            "value": float,
+            "statistic_values": {
+                "sample_count": float,
+                "sum": float,
+                "minimum": float,
+                "maximum": float
+            },
+            "unit": "string",
+            "storage_resolution": int
+        },
+    ]
+}
 
 See http://boto3.readthedocs.io/en/latest/reference/services/cloudwatch.html#CloudWatch.Client.put_metric_data
 for allowable values in the "unit" field, and more details regarding metrics.

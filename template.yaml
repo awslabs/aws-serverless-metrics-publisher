@@ -34,7 +34,7 @@ Resources:
     MetricLogger:
         Type: 'AWS::Serverless::Function'
         Properties:
-            CodeUri: s3://metric-publisher-bucket/e2a764f239eacd2cca1cfe4a94338b01
+            CodeUri: metricpublisher/
             Handler: logger_handler.log_event
             Runtime: python3.6
             Description:
@@ -61,7 +61,7 @@ Resources:
     MetricPublisher:
         Type: 'AWS::Serverless::Function'
         Properties:
-            CodeUri: s3://metric-publisher-bucket/e2a764f239eacd2cca1cfe4a94338b01
+            CodeUri: metricpublisher/
             Handler: publisher_handler.metric_publisher
             Runtime: python3.6
             Description:
