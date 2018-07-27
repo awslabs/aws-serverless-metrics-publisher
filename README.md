@@ -52,6 +52,7 @@ be there:
 ![Logo](Diagrams/PolicyTemplateJSON.png)
 
 (Raw text included here for easy copy/paste)
+
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -72,6 +73,15 @@ In the "Name" section, put "FilterLogEventsPolicy", or some other meaningful
 name. Fill in an optional description.
 
 Click "Create policy".
+
+Go back to the CloudFormation stack, click on the link under "Physical ID"
+corresonding to the "MetricPublisherRole" resource, to redirect yourself to
+the IAM console. Click the blue button labeled "Attach policies".
+
+Search for the recently created policy, under the name "FilterLogEventsPolicy",
+or whatever was entered in the "name" field when the policy was created. Click
+the checkbox next to the policy, then click "Attach Policy" at the bottom of
+the screen.
 
 Your lambda function should now have the necessary permission to access the
 Metrics Log Group resource in your app.
@@ -116,7 +126,8 @@ See http://boto3.readthedocs.io/en/latest/reference/services/cloudwatch.html#Clo
 for allowable values in the "unit" field, and more details regarding metrics.
 
 Wait the number of minutes specified in the "BatchingFrequencyInMinutes" parameter,
-or invoke the Metric Publisher Lambda Function manually. There is no input.
+or invoke the Metric Publisher Lambda Function manually. There is no input for
+the Metric Publisher Lambda Function.
 
 Your metrics can now be seen in the CloudWatch console under the "metrics" tab.
 
