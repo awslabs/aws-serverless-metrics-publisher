@@ -73,6 +73,9 @@ fields:
 
 ![Logo](Diagrams/InputJSON.png)
 
+See http://boto3.readthedocs.io/en/latest/reference/services/cloudwatch.html#CloudWatch.Client.put_metric_data
+for allowable values in the "unit" field, and more details regarding metrics.
+
 Wait the number of minutes specified in the "BatchingFrequencyInMinutes" parameter,
 or invoke the Metric Publisher Lambda Function manually. There is no input.
 
