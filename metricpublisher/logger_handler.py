@@ -1,7 +1,7 @@
 """Metric Logger lambda function entrypoint and helper functions."""
 
-import config
-import schema
+from metricpublisher import config
+from metricpublisher import schema
 from jsonschema.exceptions import ValidationError
 import boto3
 import time

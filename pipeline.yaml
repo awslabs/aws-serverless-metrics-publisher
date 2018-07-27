@@ -1,0 +1,452 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+
+    This template generates a generic 3-environment CI/CD Pipeline for Serverless Apps that use SAM (Serverless Application Model).
+
+    Charges may apply for AWS Services utilized - Below are a summary for your convenience:
+
+      GitHub: Manages and Stores your service source code (Git repository)
+      Amazon S3: Manages CodeBuild Artifacts as well as Cache for subsequent runs when defined in the build spec
+      AWS CodeBuild: Manages and Runs builds specified under buildspec.yaml
+      AWS CodePipeline: Manages and Runs the Continuous Integration and Continuous Deployment pipeline
+      AWS CloudFormation: Manages SAM templates and creates the Infrastructure necessary for each environment
+      AWS IAM: Manages Identity and Access across Services outlined above
+
+
+Parameters:
+
+    GithubRepo:
+      Description: Gitub Repository name
+      Type: AWS::SSM::Parameter::Value<String>
+      Default: /service/metricpublisherapp/github/repo
+
+    GithubToken:
+      Description: Github OAuth Token with full permissions on admin:repo_hook and repo
+      Type: AWS::SSM::Parameter::Value<String>
+      NoEcho: true
+      Default: /service/metricpublisherapp/github/token
+
+    GithubUser:
+      Description: Github user where the repository lives
+      Type: AWS::SSM::Parameter::Value<String>
+      Default: /service/metricpublisherapp/github/user
+
+Resources:
+
+ ######   #######  ##     ## ########   ######  ########
+##    ## ##     ## ##     ## ##     ## ##    ## ##
+##       ##     ## ##     ## ##     ## ##       ##
+ ######  ##     ## ##     ## ########  ##       ######
+      ## ##     ## ##     ## ##   ##   ##       ##
+##    ## ##     ## ##     ## ##    ##  ##    ## ##
+ ######   #######   #######  ##     ##  ######  ########
+
+    # CodeBuild project and resources (S3 Bucket for build artifacts, Role, Project)
+    BuildArtifactsBucket:
+        Type: AWS::S3::Bucket
+        Properties:
+          BucketEncryption:
+            ServerSideEncryptionConfiguration:
+              - ServerSideEncryptionByDefault:
+                  SSEAlgorithm: AES256
+          Tags:
+            -
+              Key: "Stack"
+              Value: !Ref AWS::StackName
+            -
+              Key: "Project"
+              Value: metricPublisherApp
+        DeletionPolicy: Retain
+
+########  ##     ## #### ##       ########
+##     ## ##     ##  ##  ##       ##     ##
+##     ## ##     ##  ##  ##       ##     ##
+########  ##     ##  ##  ##       ##     ##
+##     ## ##     ##  ##  ##       ##     ##
+##     ## ##     ##  ##  ##       ##     ##
+########   #######  #### ######## ########
+
+    CodeBuildProject:
+        Type: AWS::CodeBuild::Project
+        Properties:
+            Name: metricpublisherapp
+            Description: Build project for the metricPublisherApp
+            Artifacts:
+              Type: CODEPIPELINE
+            Environment:
+                Type: LINUX_CONTAINER
+                ComputeType: BUILD_GENERAL1_SMALL
+                Image: aws/codebuild/python:3.6.5
+                EnvironmentVariables:
+                  -
+                    Name: BUILD_OUTPUT_BUCKET
+                    Value: !Ref BuildArtifactsBucket
+            Cache:
+              Type: S3
+              Location: !Sub ${BuildArtifactsBucket}/codebuild-cache
+            ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+            Source:
+                Type: CODEPIPELINE
+            Tags:
+              -
+                Key: "Stack"
+                Value: !Ref AWS::StackName
+              -
+                Key: "Project"
+                Value: metricPublisherApp
+
+    EndToEndTestProject:
+        Type: AWS::CodeBuild::Project
+        Properties:
+            Name: metricpublisherappendtoendtest
+            Description: Test project for the metricPublisherApp
+            Artifacts:
+              Type: CODEPIPELINE
+            Environment:
+                Type: LINUX_CONTAINER
+                ComputeType: BUILD_GENERAL1_SMALL
+                Image: aws/codebuild/python:3.6.5
+                EnvironmentVariables:
+                  -
+                    Name: BUILD_OUTPUT_BUCKET
+                    Value: !Ref BuildArtifactsBucket
+            Cache:
+              Type: S3
+              Location: !Sub ${BuildArtifactsBucket}/codebuild-cache
+            ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+            Source:
+                Type: CODEPIPELINE
+            Tags:
+              -
+                Key: "Stack"
+                Value: !Ref AWS::StackName
+              -
+                Key: "Project"
+                Value: metricPublisherAppEndToEndTest
+
+########  #### ########  ######## ##       #### ##    ## ########
+##     ##  ##  ##     ## ##       ##        ##  ###   ## ##
+##     ##  ##  ##     ## ##       ##        ##  ####  ## ##
+########   ##  ########  ######   ##        ##  ## ## ## ######
+##         ##  ##        ##       ##        ##  ##  #### ##
+##         ##  ##        ##       ##        ##  ##   ### ##
+##        #### ##        ######## ######## #### ##    ## ########
+
+    Pipeline:
+        Type: AWS::CodePipeline::Pipeline
+        Properties:
+            ArtifactStore:
+                Location: !Ref BuildArtifactsBucket
+                Type: S3
+            Name: metricpublisherapp
+            RoleArn: !GetAtt CodePipelineExecutionRole.Arn
+            Stages:
+                - Name: Source
+                  Actions:
+                    - Name: SourceCodeRepo
+                      ActionTypeId:
+                        Category: Source
+                        Owner: ThirdParty
+                        Provider: GitHub
+                        Version: "1"
+                      Configuration:
+                        Owner: !Ref GithubUser
+                        Repo: !Ref GithubRepo
+                        Branch: pipeline_basic
+                        OAuthToken: !Ref GithubToken
+                      OutputArtifacts:
+                        - Name: SourceCodeAsZip
+                      RunOrder: 1
+                - Name: Build
+                  Actions:
+                    - Name: CodeBuild
+                      ActionTypeId:
+                        Category: Build
+                        Owner: AWS
+                        Provider: CodeBuild
+                        Version: "1"
+                      Configuration:
+                        ProjectName: !Ref CodeBuildProject
+                      InputArtifacts:
+                        - Name: SourceCodeAsZip
+                      OutputArtifacts:
+                        - Name: BuildArtifactAsZip
+                - Name: Deploy
+                  Actions:
+                    - Name: CreateChangeSet
+                      ActionTypeId:
+                        Category: Deploy
+                        Owner: AWS
+                        Provider: CloudFormation
+                        Version: "1"
+                      Configuration:
+                        ActionMode: CHANGE_SET_REPLACE
+                        RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+                        StackName: metricpublisherapp-Beta
+                        ChangeSetName: metricpublisherapp-ChangeSet-Beta
+                        TemplatePath: BuildArtifactAsZip::packaged.yaml
+                        Capabilities: CAPABILITY_IAM
+                      InputArtifacts:
+                        - Name: BuildArtifactAsZip
+                      RunOrder: 1
+                    - Name: ExecuteChangeSet
+                      ActionTypeId:
+                        Category: Deploy
+                        Owner: AWS
+                        Provider: CloudFormation
+                        Version: "1"
+                      Configuration:
+                        ActionMode: CHANGE_SET_EXECUTE
+                        RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+                        StackName: metricpublisherapp-Beta
+                        ChangeSetName: metricpublisherapp-ChangeSet-Beta
+                      OutputArtifacts:
+                        - Name: metricpublisherappBetaChangeSet
+                      RunOrder: 2
+                - Name: Test
+                  Actions:
+                    - Name: EndToEndTest
+                      ActionTypeId:
+                        Category: Test
+                        Owner: AWS
+                        Provider: CodeBuild
+                        Version: "1"
+                      Configuration:
+                        ProjectName: !Ref EndToEndTestProject
+                      InputArtifacts:
+                        - Name: SourceCodeAsZip
+                      OutputArtifacts:
+                        - Name: ProjectCompleted
+                - Name: Prod
+                  Actions:
+                    - Name: DeploymentApproval
+                      ActionTypeId:
+                        Category: Approval
+                        Owner: AWS
+                        Provider: Manual
+                        Version: "1"
+                      RunOrder: 1
+
+
+####    ###    ##     ##
+ ##    ## ##   ###   ###
+ ##   ##   ##  #### ####
+ ##  ##     ## ## ### ##
+ ##  ######### ##     ##
+ ##  ##     ## ##     ##
+#### ##     ## ##     ##
+
+    CodeBuildServiceRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                  - Action:
+                      - 'sts:AssumeRole'
+                    Effect: Allow
+                    Principal:
+                      Service:
+                        - codebuild.amazonaws.com
+            Path: /
+            Policies:
+                - PolicyName: CodeBuildLogs
+                  PolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                      -
+                        Effect: Allow
+                        Action:
+                          - 'logs:CreateLogGroup'
+                          - 'logs:CreateLogStream'
+                          - 'logs:PutLogEvents'
+                          - 'logs:FilterLogEvents'
+                        Resource:
+                          - '*'
+                - PolicyName: CodeBuildArtifactsBucket
+                  PolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                      -
+                        Effect: Allow
+                        Action:
+                          - 's3:GetObject'
+                          - 's3:GetObjectVersion'
+                          - 's3:PutObject'
+                        Resource:
+                          - !Sub 'arn:aws:s3:::${BuildArtifactsBucket}/*'
+                - PolicyName: CodeBuildParameterStore
+                  PolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                      -
+                        Effect: Allow
+                        Action: 'ssm:GetParameters'
+                        Resource: '*'
+                - PolicyName: CodeBuildCloudwatchAccess
+                  PolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                      -
+                        Effect: Allow
+                        Action:
+                          - 'cloudwatch:PutMetricData'
+                          - 'cloudwatch:GetMetricData'
+                        Resource: '*'
+                - PolicyName: CodeBuildDynamoDBAccess
+                  PolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                      -
+                        Effect: Allow
+                        Action:
+                          - 'dynamodb:PutItem'
+                          - 'dynamodb:GetItem'
+                        Resource: '*'
+                - PolicyName: CodeBuildLambdaAccess
+                  PolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                      -
+                        Effect: Allow
+                        Action:
+                          - 'lambda:*'
+                        Resource: '*'
+                - PolicyName: CodeBuildCloudformationAccess
+                  PolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                      -
+                        Effect: Allow
+                        Action:
+                          - 'cloudformation:*'
+                        Resource: '*'
+
+
+    CloudFormationExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+        Path: /
+        Policies:
+          - PolicyName: S3BucketAdminAccess
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                -
+                  Effect: Allow
+                  Action:
+                    - 's3:*'
+                  Resource:
+                    - '*'
+        ManagedPolicyArns:
+          - 'arn:aws:iam::aws:policy/AdministratorAccess'
+
+
+    CodePipelineExecutionRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                  -
+                    Action:
+                        - 'sts:AssumeRole'
+                    Effect: Allow
+                    Principal:
+                      Service:
+                        - codepipeline.amazonaws.com
+            Path: /
+            Policies:
+                - PolicyName: CodePipelineAccess
+                  PolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                        -
+                            Effect: Allow
+                            Action:
+                                - 'iam:PassRole'
+                                - 'lambda:InvokeFunction'
+                                - 'lambda:ListFunctions'
+                                - 'lambda:InvokeAsyc'
+                            Resource: '*'
+                - PolicyName: CodePipelineCodeAndArtifactsS3Bucket
+                  PolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                      -
+                        Effect: Allow
+                        Action: 's3:*'
+                        Resource: '*'
+                - PolicyName: CodePipelineCodeBuildAndCloudformationAccess
+                  PolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                      -
+                        Effect: Allow
+                        Action:
+                          - 'codebuild:StartBuild'
+                          - 'codebuild:BatchGetBuilds'
+                        Resource:
+                          - '*'
+                          #- !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/${CodeBuildProject}'
+                      -
+                        Effect: Allow
+                        Action:
+                          - 'cloudformation:CreateStack'
+                          - 'cloudformation:DescribeStacks'
+                          - 'cloudformation:DeleteStack'
+                          - 'cloudformation:UpdateStack'
+                          - 'cloudformation:CreateChangeSet'
+                          - 'cloudformation:ExecuteChangeSet'
+                          - 'cloudformation:DeleteChangeSet'
+                          - 'cloudformation:DescribeChangeSet'
+                          - 'cloudformation:SetStackPolicy'
+                          - 'cloudformation:SetStackPolicy'
+                          - 'cloudformation:ValidateTemplate'
+                        Resource:
+                          - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/metricpublisherapp*/*'
+                          - !Sub 'arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
+
+
+Outputs:
+
+
+    GitHubRepositoryHttpUrl:
+      Description: GitHub Git repository
+      Value: !Sub https://github.com/${GithubUser}/${GithubRepo}.git
+
+    GitHubRepositorySshUrl:
+      Description: GitHub Git repository
+      Value: !Sub git@github.com:${GithubUser}/${GithubRepo}.git
+
+    BuildArtifactS3Bucket:
+      Description: Amazon S3 Bucket for Pipeline and Build artifacts
+      Value: !Ref BuildArtifactsBucket
+
+    CodeBuildProject:
+      Description: CodeBuild Project name
+      Value: !Ref CodeBuildProject
+
+    CodePipeline:
+      Description: AWS CodePipeline pipeline name
+      Value: !Ref Pipeline
+
+    CodeBuildIAMRole:
+      Description: CodeBuild IAM Role
+      Value: !GetAtt CodeBuildServiceRole.Arn
+
+    CloudformationIAMRole:
+      Description: Cloudformation IAM Role
+      Value: !GetAtt CloudFormationExecutionRole.Arn
+
+    CodePipelineIAMRole:
+      Description: CodePipeline IAM Role
+      Value: !GetAtt CodePipelineExecutionRole.Arn
+

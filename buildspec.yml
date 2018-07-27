@@ -1,0 +1,39 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - python -m pip install pipenv --user
+      - python -m pip install pytest --user
+      - python -m pip install jsonschema --user
+      - python -m pip install jsonref --user
+      - python -m pip install pytest_mock --user
+      - pipenv sync --dev
+  pre_build:
+    commands:
+      - pipenv run pydocstyle metricpublisher
+      - pipenv run flake8 metricpublisher
+  build:
+    commands:
+      - echo "Running unit tests"
+      - python -m pytest test/unit -v
+      - echo "Running integration tests"
+      - python -m pytest test/integration -v
+  post_build:
+    commands:
+      - mkdir -p dist
+      - cp -r template.yaml metricpublisher dist
+      - pipenv lock --requirements > dist/requirements.txt
+      - pipenv run pip install -t dist/metricpublisher/lib -r dist/requirements.txt
+      - aws cloudformation package --template-file dist/template.yaml --s3-bucket $BUILD_OUTPUT_BUCKET --output-template-file packaged.yaml
+
+artifacts:
+  files:
+    - dist/metricpublisher
+    - packaged.yaml
+    - dist/requirements.txt
+  discard-paths: yes
+
+cache:
+  paths:
+    dist/
