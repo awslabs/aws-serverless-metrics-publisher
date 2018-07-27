@@ -1,9 +1,9 @@
-import events
+from integration import events
 import time
 import boto3
 from pytest_mock import mocker
-import metricpublisher.logger_handler
-import metricpublisher.publisher_handler
+from metricpublisher import logger_handler
+from metricpublisher import publisher_handler
 
 
 CONVERT_SECONDS_TO_MILLIS_FACTOR = 1000
@@ -30,8 +30,10 @@ def wait_until_metrics_published(timeout=60, period=0.5):
     in put_metric_data API"""
     number_of_metrics_expected = 34
     stop_time = time.time() + timeout
+    number_published = 0
     while time.time() < stop_time:
-        if metricpublisher.publisher_handler.metric_publisher(None, None) == number_of_metrics_expected:
+        number_published += publisher_handler.metric_publisher(None, None)
+        if number_published == number_of_metrics_expected:
             return True
         time.sleep(period)
     return False
@@ -61,20 +63,20 @@ def wait_until_data_appears(queries, start_time, timeout=60, period=0.5):
 def test_overall_flow_mocking_env_vars(mocker):
     """Test the basic flow of the app using mockers
     for the environment variables."""
-    mocker.patch.object(metricpublisher.publisher_handler, 'get_log_group_name')
-    mocker.patch.object(metricpublisher.publisher_handler, 'get_table_name')
-    mocker.patch.object(metricpublisher.publisher_handler, 'get_namespace')
-    mocker.patch.object(metricpublisher.logger_handler, 'get_log_group_name')
-    mocker.patch.object(metricpublisher.logger_handler, 'get_namespace')
-    metricpublisher.publisher_handler.get_log_group_name.return_value = 'metricPublisherAppLogGroup'
-    metricpublisher.publisher_handler.get_table_name.return_value = 'metricPublisherAppDynamoDBTable'
-    metricpublisher.publisher_handler.get_namespace.return_value = 'metricPublisherAppNamespace'
-    metricpublisher.logger_handler.get_log_group_name.return_value = 'metricPublisherAppLogGroup'
-    metricpublisher.logger_handler.get_namespace.return_value = 'metricPublisherAppNamespace'
+    mocker.patch.object(publisher_handler, 'get_log_group_name')
+    mocker.patch.object(publisher_handler, 'get_table_name')
+    mocker.patch.object(publisher_handler, 'get_namespace')
+    mocker.patch.object(logger_handler, 'get_log_group_name')
+    mocker.patch.object(logger_handler, 'get_namespace')
+    publisher_handler.get_log_group_name.return_value = 'metricPublisherAppLogGroup'
+    publisher_handler.get_table_name.return_value = 'metricPublisherAppDynamoDBTable'
+    publisher_handler.get_namespace.return_value = 'metricPublisherAppNamespace'
+    logger_handler.get_log_group_name.return_value = 'metricPublisherAppLogGroup'
+    logger_handler.get_namespace.return_value = 'metricPublisherAppNamespace'
     start_time = int(time.time()) - 60
     data = events.input_events()
     for event in data:
-        metricpublisher.logger_handler.log_event(event, None)
+        logger_handler.log_event(event, None)
     if not wait_until_events_put((start_time + 60)*CONVERT_SECONDS_TO_MILLIS_FACTOR):
         raise Exception("TimeoutError")
     if not wait_until_metrics_published():

@@ -1,0 +1,9 @@
+version: 0.2
+
+phases:
+  build:
+    commands:
+      - echo "Running end to end tests"
+      - python -m pip install pytest_mock --user
+      - python -m pip install pytest --useri
+      - python -m pytest test/endtoend -v

@@ -1,8 +1,8 @@
 """Metric Publisher lambda function entrypoint and helper functions."""
 
-import logger_handler
+from metricpublisher import logger_handler
 import boto3
-import config
+from metricpublisher import config
 import time
 import ast
 import uuid

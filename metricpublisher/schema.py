@@ -1,6 +1,6 @@
 """Helpers for schema validation."""
 
-import config
+from metricpublisher import config
 import os.path as path
 import jsonref
 from jsonschema import validate

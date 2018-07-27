@@ -1,0 +1,18 @@
+{
+    "request_id": "hfdkjshfkhewiuhkfjhfsd",
+    "metric_data": [
+        {
+            "metric_name": "theMetricName",
+            "dimensions": [
+                {
+                    "name": "theName",
+                    "value": "theValue"
+                }
+            ],
+            "timestamp": 1532554326334,
+            "value": 17,
+            "unit": "Seconds",
+            "storage_resolution": 12
+        }
+    ]
+}
