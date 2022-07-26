@@ -36,7 +36,7 @@ Resources:
         Properties:
             CodeUri: metricpublisher/
             Handler: logger_handler.log_event
-            Runtime: python3.6
+            Runtime: python3.8
             Description:
                 This function accepts an event in JSON
                 format, validates it using JSON schema,
@@ -63,7 +63,7 @@ Resources:
         Properties:
             CodeUri: metricpublisher/
             Handler: publisher_handler.metric_publisher
-            Runtime: python3.6
+            Runtime: python3.8
             Description:
                 This function retrieves and updates
                 the timestamp cursor from the Dynamo
